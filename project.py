@@ -1,4 +1,6 @@
+import math
 import pyaudio
+import tkinter as tk
 from cmu_112_graphics import *
 
 ###################################################
@@ -81,8 +83,34 @@ def menuMode_redrawAll(app, canvas):
 # Tuner Mode 
 ###################################################
 
-def tunerMode_timerFired(app):
-    pass
+def getPitchAndCents(freq, pitchChart):
+    bestPitch = None
+    bestError = None
+    logFreq = math.log2(freq)
+    for (pitch, pitchFreq) in pitchChart:
+        logPitchFreq = math.log2(pitchFreq)
+        error = logFreq - logPitchFreq
+        if bestError == None or (abs(error) < abs(bestError)):
+            bestPitch = pitch
+            bestError = error
+    return (bestPitch, bestError * 1200)
+
+def updatePitchInfo(app):
+    app.pitch, app.cents = getPitchAndCents(app.tunerFreq, app.pitchChart)
+    app.flat = app.cents < -10
+    app.sharp = app.cents > 10
+
+def tunerMode_timerFired(app): #Test code to be replaced with mic input
+    if app.currFreqI == 0:
+        app.up = True
+    if app.currFreqI == len(app.freqs) - 1:
+        app.up = False
+    app.tunerFreq = app.freqs[app.currFreqI]
+    if app.up:
+        app.currFreqI += 1
+    else:
+        app.currFreqI -= 1
+    updatePitchInfo(app)
 
 def tunerMode_mousePressed(app, event):
     pass
@@ -92,6 +120,51 @@ def tunerMode_keyPressed(app, event):
 
 def drawTunerTitle(app, canvas):
     drawTitle(app, canvas, "Tuner")
+
+def getTunerCenter(app):
+    x = app.width // 2
+    y = app.height // 2
+    return (x, y)
+
+def drawTunerArc(app, canvas):
+    (x, y) = getTunerCenter(app)
+    r = 120
+    canvas.create_arc(x - r, y - r, x + r, y + r, 
+            width=2, extent=90, style=tk.ARC, start=45)
+
+def drawTunerNeedle(app, canvas):
+    (x, y) = getTunerCenter(app)
+    canvas.create_oval(x - 3, y - 3, x + 3, y + 3, fill="black")
+    theta = math.pi / 2 + math.pi / 2 * (-app.cents / 100)
+    x2 = x + math.cos(theta) * 110
+    y2 = y - math.sin(theta) * 110
+    canvas.create_line(x, y, x2, y2, width=2)
+
+def drawPitch(app, canvas):
+    (x, y) = getTunerCenter(app)
+    canvas.create_text(x, y + 40, text=app.pitch, font="Arial 15 bold")
+
+def drawTendency(app, canvas):
+    flatFill = "white"
+    sharpFill = "white"
+    if not app.flat and not app.sharp:
+        flatFill = "green"
+        sharpFill = "green"
+    elif app.flat:
+        flatFill = "red"
+    elif app.sharp:
+        sharpFill = "red"
+    (x, y) = getTunerCenter(app)
+    flatX1 = x - 50
+    flatY1 = y - 10
+    flatX2 = x - 30
+    flatY2 = y + 10
+    canvas.create_rectangle(flatX1, flatY1, flatX2, flatY2, fill=flatFill)
+    sharpX1 = x + 30
+    sharpY1 = y - 10
+    sharpX2 = x + 50
+    sharpY2 = y + 10
+    canvas.create_rectangle(sharpX1, sharpY1, sharpX2, sharpY2, fill=sharpFill)
 
 def drawTunerDisplay(app, canvas):
     drawTunerArc(app, canvas)
@@ -124,11 +197,16 @@ def appStarted(app):
     app.mode = "menuMode"
     createMenuButtons(app)
     app.displayHelp = False
-    app.tunerFreq = 440
+    app.tunerFreq = 447
     app.tunerBaseFreq = 440
     app.pitch = "A4"
     app.cents = 0
     app.pitchChart = createPitchChart(app.tunerBaseFreq)
+    app.freqs = [x for x in range(340, 540)]
+    app.currFreqI = 0
+    app.up = True
+    app.flat = False
+    app.sharp = False
 
 def createMenuButtons(app):
     buttons = [("Tuner", "tunerMode"), ("Record", "recordMode")]
@@ -170,4 +248,4 @@ def createPitchChart(baseFreq):
     octaves = [0, 1, 2, 3, 4, 5, 6, 7, 8]
     return [(f"{note}{octave}", getFreqFromPitch(baseFreq, note, octave)) for octave in octaves for note in notes]
 
-# runApp(width=500, height=500)
+runApp(width=500, height=500)
