@@ -1,6 +1,8 @@
 import math
+import numpy as np
 import pyaudio
 import tkinter as tk
+import time
 from cmu_112_graphics import *
 
 ###################################################
@@ -83,6 +85,47 @@ def menuMode_redrawAll(app, canvas):
 # Tuner Mode 
 ###################################################
 
+#From: http://people.csail.mit.edu/hubert/pyaudio/docs/
+def getStreamCallback(app):
+    def streamCallback(in_data, frame_count, time_info, status):
+        signal = np.frombuffer(in_data, dtype=np.int16)
+        corr = np.correlate(signal, signal, mode="full")[len(signal) - 1:]
+        lowestFreq = app.pitchChart[0][1]
+        lowestNumSamples = 44100 / lowestFreq
+        highestFreq = app.pitchChart[len(app.pitchChart) - 1][1]
+        highestNumSamples = 44100 / highestFreq
+        corr[:math.ceil(lowestNumSamples)] = 0
+        corr[math.ceil(highestNumSamples):] = 0
+        periodNumSamples = np.argmax(corr)
+        if periodNumSamples > 0:
+            app.tunerFreq = 44100 / periodNumSamples #Broken
+        return None, pyaudio.paContinue
+    return streamCallback
+
+
+# From: https://realpython.com/playing-and-recording-sound-python/#recording-audio
+def startStream(app):
+    chunk = 1024
+    sample_format = pyaudio.paInt16
+    channels = 1
+    fs = 44100
+
+    app.p = pyaudio.PyAudio()
+    print("Recording...")
+    app.stream = app.p.open(format=sample_format,
+                            channels=channels,
+                            rate=fs,
+                            frames_per_buffer=chunk,
+                            input=True,
+                            stream_callback=getStreamCallback(app))
+    app.stream.start_stream()
+
+def stopStream(app):
+    app.stream.stop_stream()
+    app.stream.close()
+    app.p.terminate()
+    print("Finished recording.")
+
 def getPitchAndCents(freq, pitchChart):
     bestPitch = None
     bestError = None
@@ -100,16 +143,7 @@ def updatePitchInfo(app):
     app.flat = app.cents < -10
     app.sharp = app.cents > 10
 
-def tunerMode_timerFired(app): #Test code to be replaced with mic input
-    if app.currFreqI == 0:
-        app.up = True
-    if app.currFreqI == len(app.freqs) - 1:
-        app.up = False
-    app.tunerFreq = app.freqs[app.currFreqI]
-    if app.up:
-        app.currFreqI += 1
-    else:
-        app.currFreqI -= 1
+def tunerMode_timerFired(app): 
     updatePitchInfo(app)
 
 def tunerMode_mousePressed(app, event):
@@ -207,6 +241,7 @@ def appStarted(app):
     app.up = True
     app.flat = False
     app.sharp = False
+    startStream(app)
 
 def createMenuButtons(app):
     buttons = [("Tuner", "tunerMode"), ("Record", "recordMode")]
