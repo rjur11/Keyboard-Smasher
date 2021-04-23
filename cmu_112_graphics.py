@@ -392,6 +392,7 @@ class App(object):
         return (getattr(type(app), methodName) is not getattr(App, methodName))
 
     def _mvcViolation(app, errMsg):
+        return None
         app._running = False
         raise Exception('MVC Violation: ' + errMsg)
 

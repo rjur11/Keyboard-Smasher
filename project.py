@@ -1,3 +1,4 @@
+import aubio
 import math
 import numpy as np
 import pyaudio
@@ -88,17 +89,8 @@ def menuMode_redrawAll(app, canvas):
 #From: http://people.csail.mit.edu/hubert/pyaudio/docs/
 def getStreamCallback(app):
     def streamCallback(in_data, frame_count, time_info, status):
-        signal = np.frombuffer(in_data, dtype=np.int16)
-        corr = np.correlate(signal, signal, mode="full")[len(signal) - 1:]
-        lowestFreq = app.pitchChart[0][1]
-        lowestNumSamples = 44100 / lowestFreq
-        highestFreq = app.pitchChart[len(app.pitchChart) - 1][1]
-        highestNumSamples = 44100 / highestFreq
-        corr[:math.ceil(lowestNumSamples)] = 0
-        corr[math.ceil(highestNumSamples):] = 0
-        periodNumSamples = np.argmax(corr)
-        if periodNumSamples > 0:
-            app.tunerFreq = 44100 / periodNumSamples #Broken
+        signal = np.frombuffer(in_data, dtype=np.float32)
+        app.tunerFreq = app.pitch_o(signal)[0]
         return None, pyaudio.paContinue
     return streamCallback
 
@@ -106,7 +98,7 @@ def getStreamCallback(app):
 # From: https://realpython.com/playing-and-recording-sound-python/#recording-audio
 def startStream(app):
     chunk = 1024
-    sample_format = pyaudio.paInt16
+    sample_format = pyaudio.paFloat32
     channels = 1
     fs = 44100
 
@@ -118,6 +110,15 @@ def startStream(app):
                             frames_per_buffer=chunk,
                             input=True,
                             stream_callback=getStreamCallback(app))
+    # From: https://github.com/aubio/aubio/blob/master/python/demos/demo_pyaudio.py
+    # setup pitch
+    tolerance = 0.8
+    win_s = 4096 # fft size
+    hop_s = chunk # hop size
+    app.pitch_o = aubio.pitch("default", win_s, hop_s, fs)
+    app.pitch_o.set_unit("Hz")
+    app.pitch_o.set_tolerance(tolerance)
+
     app.stream.start_stream()
 
 def stopStream(app):
@@ -127,8 +128,11 @@ def stopStream(app):
     print("Finished recording.")
 
 def getPitchAndCents(freq, pitchChart):
+    if freq == 0.0:
+        return ('A4', 0)
     bestPitch = None
     bestError = None
+    print(freq)
     logFreq = math.log2(freq)
     for (pitch, pitchFreq) in pitchChart:
         logPitchFreq = math.log2(pitchFreq)
@@ -143,7 +147,19 @@ def updatePitchInfo(app):
     app.flat = app.cents < -10
     app.sharp = app.cents > 10
 
-def tunerMode_timerFired(app): 
+#def tunerMode_timerFired(app): 
+    #updatePitchInfo(app)
+
+def tunerMode_timerFired(app): #Test code to be replaced with mic input
+    '''if app.currFreqI == 0:
+        app.up = True
+    if app.currFreqI == len(app.freqs) - 1:
+        app.up = False
+    app.tunerFreq = app.freqs[app.currFreqI]
+    if app.up:
+        app.currFreqI += 1
+    else:
+        app.currFreqI -= 1'''
     updatePitchInfo(app)
 
 def tunerMode_mousePressed(app, event):
@@ -231,7 +247,7 @@ def appStarted(app):
     app.mode = "menuMode"
     createMenuButtons(app)
     app.displayHelp = False
-    app.tunerFreq = 447
+    app.tunerFreq = 440
     app.tunerBaseFreq = 440
     app.pitch = "A4"
     app.cents = 0
@@ -283,4 +299,4 @@ def createPitchChart(baseFreq):
     octaves = [0, 1, 2, 3, 4, 5, 6, 7, 8]
     return [(f"{note}{octave}", getFreqFromPitch(baseFreq, note, octave)) for octave in octaves for note in notes]
 
-runApp(width=500, height=500)
+runApp(width=500, height=500, mvcCheck=False)
