@@ -18,10 +18,10 @@ notes = 80
 song = []
 
 for i in range(notes):
-    button = random.choice(buttons)
     startTime = str(firstNote + i * (lastNote - firstNote) / notes)
     endTime = ""
-    song.append((button, startTime, endTime))
+    for button in buttons:
+        song.append((button, startTime, endTime))
 
 def writeSongToFile(song, filename):
     stringNotes = [f'{button},{startTime},{endTime}' for (button, startTime, endTime) in song]
@@ -30,6 +30,4 @@ def writeSongToFile(song, filename):
     f.write(text)
     f.close()
 
-writeSongToFile(song, "levels/level3.txt")
-for i in range(100):
-    writeSongToFile(song, f'levels/nonsense{i}.txt')
+writeSongToFile(song, "levels/chords.txt")
