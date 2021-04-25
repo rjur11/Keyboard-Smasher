@@ -9,6 +9,7 @@ from cmu_112_graphics import *
 ###################################################
 
 def commonKeyPressed(app, event):
+    # TODO: Make mode switching consistent.
     if event.key == "M" or event.key == "m":
         app.mode = "menuMode"
     elif event.key == "L" or event.key == "l":
@@ -20,10 +21,10 @@ def commonKeyPressed(app, event):
     elif event.key == "H" or event.key == "h":
         app.displayHelp = not app.displayHelp
 
+# Handles mode switching from "button-like" things.
 def switchMode(app, mode):
     if mode == "levelSelectMode":
-        refreshLevelList(app)
-    app.mode = mode
+        loadLevelSelect(app)
 
 def drawHelpText(app, canvas):
     canvas.create_text(app.width//2, app.height - 30, 
@@ -96,6 +97,10 @@ def menuMode_redrawAll(app, canvas):
 # Level Select Mode 
 ###################################################
 
+def loadLevelSelect(app):
+    refreshLevelList(app)
+    app.mode = "levelSelectMode"
+
 def getLevelButtonLocation(app, i):
     topY = app.height // 3
     height = 30
@@ -107,11 +112,14 @@ def getLevelButtonLocation(app, i):
     y2 = y1 + height
     return (x1, y1, x2, y2)
 
+# Fetches levels from current page to display as "buttons".
 def fetchLevelsToDisplay(app):
     start = app.levelPage * app.levelsPerPage
     end = start + app.levelsPerPage
     app.levelsToDisplay = app.levelList[start:end]
 
+# Handles determining which "button" was pressed including next/previous page
+# "buttons".
 def getClickedLevelButton(app, x, y):
     for i in range(len(app.levelsToDisplay)+2):
         (x1, y1, x2, y2) = getLevelButtonLocation(app, i)
@@ -130,6 +138,8 @@ def getClickedLevelButton(app, x, y):
                 return i
     return None
 
+# Pulls list of relevant level files and populates a list of levels from the
+# filenames.
 def refreshLevelList(app):
     app.levelPage = 0
     app.levelList = []
@@ -216,10 +226,16 @@ def scoreMode_keyPressed(app, event):
 def scoreMode_redrawAll(app,canvas):
     drawScoresTitle(app, canvas)
     drawHelpText(app, canvas)
+
 ###################################################
 # Game Mode 
 ###################################################
 
+def getStartTime(note):
+    return note[1]
+
+# Takes a string that represents a level and creates a resulting list holding
+# tuples of the direction, start time, and optional end time of each note.
 def parseLevel(levelString):
     result = []
     for line in levelString.splitlines():
@@ -230,7 +246,7 @@ def parseLevel(levelString):
         if endTime != None:
             endTime = float(endTime)
         result.append((direction, startTime, endTime))
-    result.sort(key=lambda note: note[1]) # Sort by the startTime.
+    result.sort(key=getStartTime) # Sort by the startTime.
     return result
 
 def loadLevelFile(app, filename):
@@ -254,7 +270,12 @@ def loadLevel(app, level):
     app.max_combo = 0
     app.misses = [] # Store the times that the misses occurred.
 
+# Binary search to find the start index and end index for the slice of notes
+# that occur between start time and end time.
 def getNotesWithinTimeRange(notes, startTime, endTime):
+    # Find the index where all of the notes that occur before have a time
+    # earlier than start time, and all notes that occur after have a time equal
+    # to or later than start time.
     low = 0
     high = len(notes)
     while low < high:
@@ -265,8 +286,12 @@ def getNotesWithinTimeRange(notes, startTime, endTime):
             high = mid
         else:
             low = mid
-            high = mid + 1
+            high = mid
     startIndex = low
+
+    # Find the index where all of the notes that occur before have a time equal 
+    # to or earlier than end time, and all notes that occur after have a time 
+    # later than end time.
     low = startIndex
     high = len(notes)
     while low < high:
@@ -278,12 +303,16 @@ def getNotesWithinTimeRange(notes, startTime, endTime):
     endIndex = high
     return startIndex, endIndex
 
+# Fetch the notes that we may have to render on the page and include them in a
+# list along with the proportion up the page where they should be rendered.
+#
+# Also updates the overall progress within the level.
 def getNotesWithinSeconds(app, seconds):
     currTime = time.time()
     elapsed = currTime - app.startTime
     startIndex, endIndex = getNotesWithinTimeRange(app.currLevel,
                                                     elapsed, elapsed + seconds)
-    app.progress = startIndex / len(app.currLevel)
+    app.progress = startIndex / len(app.currLevel) # updates level progress.
     notes = app.currLevel[startIndex:endIndex]
     directionsWithProportions = [(direction, (startTime - elapsed) / seconds)
                                  for (direction, startTime, endTime) in notes]
@@ -292,11 +321,18 @@ def getNotesWithinSeconds(app, seconds):
 def gameMode_timerFired(app):
     if app.paused:
         return None
+    
     elapsed = time.time() - app.startTime
     app.elapsed = elapsed
+
+    # Determine the number of seconds for which each note appears on the page
+    # and find the notes that may need to be rendered.
     speedToSecondsOnPage = {1: 5, 2: 4, 3: 3, 4: 2, 5: 1, 11: 0.1}
     secondsOnPage = speedToSecondsOnPage[app.arrowSpeed]
     app.notesToDisplay = getNotesWithinSeconds(app, secondsOnPage)
+
+    # Finds the notes that can no longer possibly earn points and marks them
+    # as misses.
     while (app.missedIndex < len(app.currLevel) and
             app.currLevel[app.missedIndex][1] < elapsed - 0.2):
         if app.noteScores[app.missedIndex] == None:
@@ -306,6 +342,7 @@ def gameMode_timerFired(app):
             app.noteScores[app.missedIndex] = ('Miss',
                                     combo_multiplier, app.combo, app.score, elapsed)
         app.missedIndex += 1
+    # Once all notes have been finished, ends level and loads results.
     if app.missedIndex == len(app.currLevel):
         loadResultsPage(app)
 
@@ -319,8 +356,10 @@ def gameMode_keyPressed(app, event):
         elapsed = time.time() - app.startTime
         keyDirection = app.keyBinds[event.key]
         threshold = 0.2
+        # Find all candidate notes.
         startIndex, endIndex = getNotesWithinTimeRange(app.currLevel,
                                 elapsed - threshold, elapsed + threshold)
+        # Get the closest relevant note from our candidate notes.
         bestNoteIndex = None
         bestError = None
         for i in range(startIndex, endIndex):
@@ -330,6 +369,8 @@ def gameMode_keyPressed(app, event):
                 if bestError == None or currError < bestError:
                     bestNoteIndex = i
                     bestError = currError
+        
+        # Update score information based on error.
         combo_multiplier = 1 + min(app.combo * 0.1, 3)
         if bestError == None:
             app.score -= 5
@@ -339,7 +380,8 @@ def gameMode_keyPressed(app, event):
             app.score += 10 * combo_multiplier
             app.combo += 1
             app.noteScores[bestNoteIndex] = ('Perfect',
-                                    combo_multiplier, app.combo, app.score, elapsed)
+                                    combo_multiplier, app.combo, 
+                                    app.score, elapsed)
         elif bestError < 0.1:
             app.score += 5 * combo_multiplier
             app.combo += 1
@@ -349,7 +391,8 @@ def gameMode_keyPressed(app, event):
             app.score += 2 * combo_multiplier
             app.combo = 0
             app.noteScores[bestNoteIndex] = ('OK', 
-                                    combo_multiplier, app.combo, app.score, elapsed)
+                                    combo_multiplier, app.combo, 
+                                    app.score, elapsed)
         app.max_combo = max(app.combo, app.max_combo)
 
 def drawTopBar(app, canvas):
@@ -429,6 +472,7 @@ def gameMode_redrawAll(app, canvas):
                           rightRight, rightMiddle,
                           outline='blue', fill='lightBlue', width=3)
     
+    # Draw the upcoming notes in the proper position on the page.
     for direction, proportion in app.notesToDisplay:
         noteVerticalCenter = verticalCenter + proportion * (
             startingVerticalCenter - verticalCenter
@@ -471,6 +515,7 @@ def gameMode_redrawAll(app, canvas):
 
 def loadResultsPage(app):
     app.mode = 'resultsPage'
+    # Get a dictionary to hold counts for each of the possible note scores.
     app.counts = {
             'Perfect': 0,
             'Good': 0,
@@ -490,12 +535,15 @@ def getTimeFromScore(score):
 def getTimeFromMiss(miss):
     return miss[0]
 
+# Assemble a list of all interesting events in sorted order of when they
+# occurred.
 def mergeNoteScoresAndMisses(app):
     scoresIndex = 0
     missesIndex = 0
     result = []
     sortedScores = sorted(app.noteScores, key=getTimeFromScore)
     sortedMisses = sorted(app.misses, key=getTimeFromMiss)
+    # Modified mergesort merge that tracks combo information over time.
     while scoresIndex < len(sortedScores) and missesIndex < len(sortedMisses):
         _, _, combo, _, noteTime = sortedScores[scoresIndex]
         missTime, _ = sortedMisses[missesIndex]
@@ -507,6 +555,7 @@ def mergeNoteScoresAndMisses(app):
             missesIndex += 1
         else: # This should never happen (fingers crossed).
             assert(False)
+    # Exhaust remaining list.
     while scoresIndex < len(sortedScores):
         _, _, combo, _, noteTime = sortedScores[scoresIndex]
         result.append((noteTime, combo))
@@ -532,8 +581,8 @@ def drawGraph(app, canvas):
     maxTime = app.elapsed
     maxCombo = app.max_combo
     firstTime, firstCombo = mergedEvents[0]
-    lastX = x1 + (x2 - x1) * (firstTime / maxTime)
-    lastY = y2 - (y2 - y1) * (firstCombo / maxCombo)
+    lastX = x1 + (x2 - x1) * (firstTime / maxTime) # convert time to distance.
+    lastY = y2 - (y2 - y1) * (firstCombo / maxCombo) # convert combo to height.
     canvas.create_line(x1, y2, lastX, lastY)
     for nextTime, nextCombo in mergedEvents[1:]:
         nextX = x1 + (x2 - x1) * (nextTime / maxTime)
@@ -541,7 +590,7 @@ def drawGraph(app, canvas):
         canvas.create_line(lastX, lastY, nextX, nextY)
         lastX = nextX
         lastY = nextY
-    canvas.create_line(lastX, lastY, x2, lastY)
+    canvas.create_line(lastX, lastY, x2, lastY) # fill in remaining graph.
 
 def drawTotals(app, canvas):
     top_y = app.height / 3
@@ -573,7 +622,7 @@ def drawCounts(app, canvas):
     countsList = [(score, app.counts[score]) for score in app.counts]
     for i in range(len(countsList)):
         score, count = countsList[i]
-        y = top_y + (1 + 2 * i) * (bot_y - top_y) / (2 * len(countsList))
+        y = top_y + (1 + 2 * i) * (bot_y - top_y) / (2 * len(countsList)) # halfway down each cell.
         canvas.create_text(right, y,
                         anchor='e',
                         font='Arial 16 bold',
