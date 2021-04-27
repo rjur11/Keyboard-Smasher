@@ -545,24 +545,24 @@ def mergeNoteScoresAndMisses(app):
     sortedMisses = sorted(app.misses, key=getTimeFromMiss)
     # Modified mergesort merge that tracks combo information over time.
     while scoresIndex < len(sortedScores) and missesIndex < len(sortedMisses):
-        _, _, combo, _, noteTime = sortedScores[scoresIndex]
-        missTime, _ = sortedMisses[missesIndex]
+        _, _, combo, noteScore, noteTime = sortedScores[scoresIndex]
+        missTime, missScore = sortedMisses[missesIndex]
         if noteTime < missTime:
-            result.append((noteTime, combo))
+            result.append((noteTime, combo, noteScore))
             scoresIndex += 1
         elif missTime < noteTime:
-            result.append((missTime, 0))
+            result.append((missTime, 0, missScore))
             missesIndex += 1
         else: # This should never happen (fingers crossed).
             assert(False)
     # Exhaust remaining list.
     while scoresIndex < len(sortedScores):
-        _, _, combo, _, noteTime = sortedScores[scoresIndex]
-        result.append((noteTime, combo))
+        _, _, combo, noteScore, noteTime = sortedScores[scoresIndex]
+        result.append((noteTime, combo, noteScore))
         scoresIndex += 1
     while missesIndex < len(sortedMisses):
-        missTime, _ = sortedMisses[missesIndex]
-        result.append((missTime, combo))
+        missTime, missScore = sortedMisses[missesIndex]
+        result.append((missTime, combo, missScore))
         missesIndex += 1
     return result
 
@@ -580,17 +580,39 @@ def drawGraph(app, canvas):
         return None
     maxTime = app.elapsed
     maxCombo = app.max_combo
-    firstTime, firstCombo = mergedEvents[0]
+    firstTime, firstCombo, _ = mergedEvents[0]
     lastX = x1 + (x2 - x1) * (firstTime / maxTime) # convert time to distance.
     lastY = y2 - (y2 - y1) * (firstCombo / maxCombo) # convert combo to height.
-    canvas.create_line(x1, y2, lastX, lastY)
-    for nextTime, nextCombo in mergedEvents[1:]:
+    canvas.create_line(x1, y2, lastX, lastY, fill='black')
+    for nextTime, nextCombo, _ in mergedEvents[1:]:
         nextX = x1 + (x2 - x1) * (nextTime / maxTime)
         nextY = y2 - (y2 - y1) * (nextCombo / maxCombo)
-        canvas.create_line(lastX, lastY, nextX, nextY)
+        canvas.create_line(lastX, lastY, nextX, nextY, fill='black')
         lastX = nextX
         lastY = nextY
-    canvas.create_line(lastX, lastY, x2, lastY) # fill in remaining graph.
+    canvas.create_line(lastX, lastY, x2, lastY, fill='black') # fill in remaining graph.
+
+    minScore = None
+    maxScore = None
+    for _, _, score in mergedEvents:
+        if minScore == None or score < minScore:
+            minScore = score
+        if maxScore == None or score > maxScore:
+            maxScore = score
+    firstTime, _, firstScore = mergedEvents[0]
+    lastX = x1 + (x2 - x1) * (firstTime / maxTime) # convert time to distance.
+    lastY = y2 - (y2 - y1) * ((firstScore - minScore) / (maxScore - minScore)) # convert score to height.
+    zeroY = y2 - (y2 - y1) * ((0 - minScore) / (maxScore - minScore))
+    if zeroY != 0:
+        canvas.create_line(x1 - 2, zeroY, x1 + 2, zeroY, fill='red')
+    canvas.create_line(x1, zeroY, lastX, lastY, fill='blue')
+    for nextTime, _, nextScore in mergedEvents[1:]:
+        nextX = x1 + (x2 - x1) * (nextTime / maxTime)
+        nextY = y2 - (y2 - y1) * ((nextScore - minScore) / (maxScore - minScore))
+        canvas.create_line(lastX, lastY, nextX, nextY, fill='blue')
+        lastX = nextX
+        lastY = nextY
+    canvas.create_line(lastX, lastY, x2, lastY, fill='blue') # fill in remaining graph.
 
 def drawTotals(app, canvas):
     top_y = app.height / 3
@@ -644,7 +666,7 @@ def appStarted(app):
     app.displayHelp = False
     app.levelsPerPage = 5
     app.arrowDirection = 'Up'
-    app.arrowSpeed = 3
+    app.arrowSpeed = 1
     app.arrowShape = 'Triangle'
     app.keyBinds = {
             'Left': 'left',

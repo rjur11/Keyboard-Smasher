@@ -12,9 +12,9 @@ from cmu_112_graphics import *
 buttons = ['left', 'right', 'up', 'down']
 
 firstNote = 5
-lastNote = 55
+lastNote = 20
 
-notes = 80
+notes = 40
 song = []
 
 for i in range(notes):
@@ -30,4 +30,4 @@ def writeSongToFile(song, filename):
     f.write(text)
     f.close()
 
-writeSongToFile(song, "levels/chords.txt")
+writeSongToFile(song, "levels/kelly.txt")
