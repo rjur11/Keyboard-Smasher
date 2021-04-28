@@ -13,11 +13,11 @@ def commonKeyPressed(app, event):
     if event.key == "M" or event.key == "m":
         app.mode = "menuMode"
     elif event.key == "L" or event.key == "l":
-        app.mode = "levelSelectMode"
+        loadLevelSelect(app)
     elif event.key == "I" or event.key == "i":
         app.mode = "instructionMode"
     elif event.key == "S" or event.key == "s":
-        app.mode = "scoreMode"
+        loadScoreMode(app)
     elif event.key == "H" or event.key == "h":
         app.displayHelp = not app.displayHelp
 
@@ -25,6 +25,8 @@ def commonKeyPressed(app, event):
 def switchMode(app, mode):
     if mode == "levelSelectMode":
         loadLevelSelect(app)
+    elif mode == "scoreMode":
+        loadScoreMode(app)
 
 def drawHelpText(app, canvas):
     canvas.create_text(app.width//2, app.height - 30, 
@@ -217,14 +219,134 @@ def instructionMode_redrawAll(app, canvas):
 # Score Mode 
 ###################################################
 
+def loadScoreMode(app):
+    refreshScoreLevelList(app)
+    app.activeScorePage = None
+    app.mode = "scoreMode"
+
+def getScoreLevelButtonLocation(app, i):
+    topY = app.height // 3
+    height = 30
+    width = 150
+    yGap = 10
+    x1 = (app.width - width) // 2
+    x2 = (app.width + width) // 2
+    y1 = i * (height + yGap) + topY
+    y2 = y1 + height
+    return (x1, y1, x2, y2)
+
+# Fetches levels from current page to display as "buttons".
+def fetchScoreLevelsToDisplay(app):
+    start = app.scoreLevelPage * app.levelsPerPage
+    end = start + app.levelsPerPage
+    app.scoreLevelsToDisplay = app.scoreLevelList[start:end]
+
+# Handles determining which "button" was pressed including next/previous page
+# "buttons".
+def getClickedScoreLevelButton(app, x, y):
+    for i in range(len(app.scoreLevelsToDisplay)+2):
+        (x1, y1, x2, y2) = getScoreLevelButtonLocation(app, i)
+        if (x1 <= x <= x2) and (y1 <= y <= y2):
+            if i == 0:
+                if hasPrevScoreLevelPage(app):
+                    return i
+                else:
+                    return None
+            if i == len(app.scoreLevelsToDisplay)+1:
+                if hasNextScoreLevelPage(app):
+                    return i
+                else:
+                    return None
+            if i - 1 < len(app.scoreLevelsToDisplay):
+                return i
+    return None
+
+# Pulls list of relevant level files and populates a list of levels from the
+# filenames.
+def refreshScoreLevelList(app):
+    app.scoreLevelPage = 0
+    app.scoreLevelList = []
+    for filename in os.listdir("scores/"):
+        splits = os.path.splitext(filename)
+        if len(splits) == 2 and splits[1] == ".txt":
+            app.scoreLevelList.append(splits[0])
+    fetchScoreLevelsToDisplay(app)
+    app.hasMultipleScoreLevelPages = len(app.scoreLevelList) > app.levelsPerPage
+
+def hasPrevScoreLevelPage(app):
+    return app.hasMultipleScoreLevelPages and app.scoreLevelPage > 0
+
+def hasNextScoreLevelPage(app):
+    return (app.hasMultipleScoreLevelPages
+                and app.levelsPerPage * (app.scoreLevelPage+1) < len(app.scoreLevelList))
+
+def drawScoreLevelList(app, canvas):
+    if hasPrevScoreLevelPage(app):
+        (x1, y1, x2, y2) = getScoreLevelButtonLocation(app, 0)
+        canvas.create_rectangle(x1, y1, x2, y2, width=2, fill='black')
+        canvas.create_text((x1+x2)/2, (y1+y2)/2,
+                            text='Previous Page', fill='white')
+    for i in range(len(app.scoreLevelsToDisplay)):
+        (x1, y1, x2, y2) = getScoreLevelButtonLocation(app, i + 1)
+        canvas.create_rectangle(x1, y1, x2, y2, width=2)
+        canvas.create_text((x1+x2)/2, (y1+y2)/2, text=app.scoreLevelsToDisplay[i])
+    if hasNextScoreLevelPage(app):
+        (x1, y1, x2, y2) = getScoreLevelButtonLocation(app, len(app.scoreLevelsToDisplay) + 1)
+        canvas.create_rectangle(x1, y1, x2, y2, width=2, fill='black')
+        canvas.create_text((x1+x2)/2, (y1+y2)/2,
+                            text='Next Page', fill='white')
+
+def getTopScores(app):
+    scoresToGet = 10
+    filename = f'scores/{app.activeScorePage}.txt'
+    f = open(filename, 'r')
+    scoreList = []
+    for line in f.read().splitlines():
+        name, score = line.split(',')
+        scoreList.append((name, float(score)))
+    return sorted(scoreList, key=lambda entry: entry[1], reverse=True)[:scoresToGet]
+
+def drawActiveScorePage(app, canvas):
+    canvas.create_text(app.width // 2, 80, text=f'{app.activeScorePage}:',
+                       font='Arial 20 bold underline', fill='red')
+
+    topScores = getTopScores(app)
+    for i in range(len(topScores)):
+        name, score = topScores[i]
+        left = app.width // 2 - 200
+        right = app.width // 2 + 200
+        y = 150 + 30 * i
+        canvas.create_text(left, y, text=f'{name}', font='Arial 16', anchor='sw')
+        canvas.create_text(right, y, text=f'{int(score)}', font='Arial 16', anchor='se')
+        canvas.create_line(left, y, right, y, width=2)
+
 def drawScoresTitle(app, canvas):
     drawTitle(app, canvas, "Scores")
+
+def scoreMode_mousePressed(app, event):
+    if app.activeScorePage != None:
+        app.activeScorePage = None
+        return
+    clicked = getClickedScoreLevelButton(app, event.x, event.y)
+    if clicked != None:
+        if clicked == 0:
+            app.scoreLevelPage -= 1 
+            fetchScoreLevelsToDisplay(app)
+        elif clicked == len(app.scoreLevelsToDisplay)+1:
+            app.scoreLevelPage += 1
+            fetchScoreLevelsToDisplay(app)
+        else:
+            app.activeScorePage = app.scoreLevelsToDisplay[clicked-1]
 
 def scoreMode_keyPressed(app, event):
     commonKeyPressed(app, event)
 
 def scoreMode_redrawAll(app,canvas):
     drawScoresTitle(app, canvas)
+    if app.activeScorePage == None:
+        drawScoreLevelList(app, canvas)
+    else:
+        drawActiveScorePage(app, canvas)
     drawHelpText(app, canvas)
 
 ###################################################
@@ -513,6 +635,19 @@ def gameMode_redrawAll(app, canvas):
 # Results Page 
 ###################################################
 
+def saveScore(app):
+    name = None
+    while name == None or ',' in name:
+        name = app.getUserInput('What is your name?')
+        if (name == None):
+            return None
+        if (',' in name):
+            app.showMessage("Names don't contain commas, silly!")
+    filename = f'scores/{app.currLevelName}.txt'
+    f = open(filename, 'a')
+    f.write(f'{name},{app.score}\n')
+    f.close()
+
 def loadResultsPage(app):
     app.mode = 'resultsPage'
     # Get a dictionary to hold counts for each of the possible note scores.
@@ -525,9 +660,44 @@ def loadResultsPage(app):
         }
     for score, _, _, _, _ in app.noteScores:
         app.counts[score] += 1
+    app.resultsButtons = [('Settings', lambda: None),
+                          ('Level Select', lambda: loadLevelSelect(app)),
+                          ('Replay', lambda: loadLevel(app, app.currLevelName)),
+                          ('Save Score', lambda: saveScore(app))]
 
-def resultsPage_mouseClicked(app, event):
-    pass
+def getResultsButtonLocation(app, i):
+    rows = 2
+    cols = 2
+    topY = 2 * app.height // 3
+    botY = app.height
+    leftX = 0
+    rightX = 2 * app.width // 3
+    height = 30
+    width = 150
+    row = i // cols
+    col = i % cols
+    sectionX1 = leftX + col * (rightX - leftX) / cols
+    sectionX2 = sectionX1 + (rightX - leftX) / cols
+    sectionY1 = topY + row * (botY - topY) / rows
+    sectionY2 = sectionY1 + (botY - topY) / rows
+    x1 = (sectionX1 + sectionX2) / 2 - width / 2
+    x2 = x1 + width
+    y1 = (sectionY1 + sectionY2) / 2 - height / 2
+    y2 = y1 + height
+    return (x1, y1, x2, y2)
+
+def getClickedResultsButton(app, x, y):
+    for i in range(len(app.resultsButtons)):
+        (x1, y1, x2, y2) = getResultsButtonLocation(app, i)
+        if (x1 <= x <= x2) and (y1 <= y <= y2):
+            return app.resultsButtons[i]
+    return None
+
+def resultsPage_mousePressed(app, event):
+    clickedButton = getClickedResultsButton(app, event.x, event.y)
+    if clickedButton != None:
+        text, action = clickedButton
+        action()
 
 def getTimeFromScore(score):
     return score[4]
@@ -566,6 +736,44 @@ def mergeNoteScoresAndMisses(app):
         missesIndex += 1
     return result
 
+def plotLineOverTime(canvas,
+                     x1, y1,
+                     x2, y2,
+                     data,
+                     getTime,
+                     getValue,
+                     totalTime,
+                     fill):
+    if len(data) < 2:
+        return None
+    minValue = None
+    maxValue = 0 # We would like to always "start" from 0, so make sure that it
+                 # appears on our y-axis
+    for entry in data:
+        value = getValue(entry)
+        if minValue == None or value < minValue:
+            minValue = value
+        if maxValue == None or value > maxValue:
+            maxValue = value
+    if maxValue == minValue:
+        return None
+    minValue = min(minValue, 0)
+    firstTime = getTime(data[0])
+    firstValue = getValue(data[0])
+    lastX = x1 + (x2 - x1) * (firstTime / totalTime) # convert time to distance.
+    lastY = y2 - (y2 - y1) * ((firstValue - minValue) / (maxValue - minValue)) # convert value to height.
+    zeroY = y2 - (y2 - y1) * ((0 - minValue) / (maxValue - minValue))
+    canvas.create_line(x1, zeroY, lastX, lastY, fill=fill)
+    for entry in data[1:]:
+        nextTime = getTime(entry)
+        nextValue = getValue(entry)
+        nextX = x1 + (x2 - x1) * (nextTime / totalTime)
+        nextY = y2 - (y2 - y1) * ((nextValue - minValue) / (maxValue - minValue))
+        canvas.create_line(lastX, lastY, nextX, nextY, fill=fill)
+        lastX = nextX
+        lastY = nextY
+    canvas.create_line(lastX, lastY, x2, lastY, fill=fill) # fill in remaining graph.
+
 def drawGraph(app, canvas):
     x1 = 30
     y1 = 30
@@ -578,41 +786,12 @@ def drawGraph(app, canvas):
                             font='Arial 20 bold',
                             text='Wow, that was a cool level.')
         return None
-    maxTime = app.elapsed
-    maxCombo = app.max_combo
-    firstTime, firstCombo, _ = mergedEvents[0]
-    lastX = x1 + (x2 - x1) * (firstTime / maxTime) # convert time to distance.
-    lastY = y2 - (y2 - y1) * (firstCombo / maxCombo) # convert combo to height.
-    canvas.create_line(x1, y2, lastX, lastY, fill='black')
-    for nextTime, nextCombo, _ in mergedEvents[1:]:
-        nextX = x1 + (x2 - x1) * (nextTime / maxTime)
-        nextY = y2 - (y2 - y1) * (nextCombo / maxCombo)
-        canvas.create_line(lastX, lastY, nextX, nextY, fill='black')
-        lastX = nextX
-        lastY = nextY
-    canvas.create_line(lastX, lastY, x2, lastY, fill='black') # fill in remaining graph.
-
-    minScore = None
-    maxScore = None
-    for _, _, score in mergedEvents:
-        if minScore == None or score < minScore:
-            minScore = score
-        if maxScore == None or score > maxScore:
-            maxScore = score
-    firstTime, _, firstScore = mergedEvents[0]
-    lastX = x1 + (x2 - x1) * (firstTime / maxTime) # convert time to distance.
-    lastY = y2 - (y2 - y1) * ((firstScore - minScore) / (maxScore - minScore)) # convert score to height.
-    zeroY = y2 - (y2 - y1) * ((0 - minScore) / (maxScore - minScore))
-    if zeroY != 0:
-        canvas.create_line(x1 - 2, zeroY, x1 + 2, zeroY, fill='red')
-    canvas.create_line(x1, zeroY, lastX, lastY, fill='blue')
-    for nextTime, _, nextScore in mergedEvents[1:]:
-        nextX = x1 + (x2 - x1) * (nextTime / maxTime)
-        nextY = y2 - (y2 - y1) * ((nextScore - minScore) / (maxScore - minScore))
-        canvas.create_line(lastX, lastY, nextX, nextY, fill='blue')
-        lastX = nextX
-        lastY = nextY
-    canvas.create_line(lastX, lastY, x2, lastY, fill='blue') # fill in remaining graph.
+    plotLineOverTime(canvas, x1, y1, x2, y2, mergedEvents,
+                     lambda entry: entry[0],
+                     lambda entry: entry[1], app.elapsed, 'black')
+    plotLineOverTime(canvas, x1, y1, x2, y2, mergedEvents,
+                     lambda entry: entry[0],
+                     lambda entry: entry[2], app.elapsed, 'blue')
 
 def drawTotals(app, canvas):
     top_y = app.height / 3
@@ -634,8 +813,12 @@ def drawTotals(app, canvas):
                         font='Arial 16 bold',
                         text=f'Highest Combo: {app.max_combo}')
 
-def drawButtons(app, canvas):
-    pass
+def drawResultsButtons(app, canvas):
+    for i in range(len(app.resultsButtons)):
+        x1, y1, x2, y2 = getResultsButtonLocation(app, i)
+        canvas.create_rectangle(x1, y1, x2, y2, fill="white", width=2)
+        canvas.create_text((x1 + x2)//2, (y1 + y2)//2, 
+                text=app.resultsButtons[i][0], font="Arial 15 bold")
 
 def drawCounts(app, canvas):
     top_y = app.height / 3
@@ -653,7 +836,7 @@ def drawCounts(app, canvas):
 def resultsPage_redrawAll(app, canvas):
     drawGraph(app, canvas)
     drawTotals(app, canvas)
-    drawButtons(app, canvas)
+    drawResultsButtons(app, canvas)
     drawCounts(app, canvas)
 
 ###################################################
