@@ -9,24 +9,18 @@ from cmu_112_graphics import *
 ###################################################
 
 def commonKeyPressed(app, event):
-    # TODO: Make mode switching consistent.
     if event.key == "M" or event.key == "m":
-        app.mode = "menuMode"
+        loadMenu(app)
     elif event.key == "L" or event.key == "l":
         loadLevelSelect(app)
     elif event.key == "I" or event.key == "i":
-        app.mode = "instructionMode"
+        loadInstructions(app)
     elif event.key == "S" or event.key == "s":
         loadScoreMode(app)
+    elif event.key == "E" or event.key == "e":
+        loadSettingsMode(app)
     elif event.key == "H" or event.key == "h":
         app.displayHelp = not app.displayHelp
-
-# Handles mode switching from "button-like" things.
-def switchMode(app, mode):
-    if mode == "levelSelectMode":
-        loadLevelSelect(app)
-    elif mode == "scoreMode":
-        loadScoreMode(app)
 
 def drawHelpText(app, canvas):
     canvas.create_text(app.width//2, app.height - 30, 
@@ -43,6 +37,12 @@ def drawTitle(app, canvas, text):
 ###################################################
 # Menu Mode 
 ###################################################
+
+def loadMenu(app):
+    app.menuButtons = [("Select Level", lambda: loadLevelSelect(app)), 
+                       ("Instructions", lambda: loadInstructions(app)),
+                       ("Scores", lambda: loadScoreMode(app))]
+    app.mode = 'menuMode'
 
 def getMenuButtonLocation(app, i):
     topY = app.height // 2
@@ -65,8 +65,8 @@ def getClickedMenuButton(app, x, y):
 def menuMode_mousePressed(app, event):
     clickedButton = getClickedMenuButton(app, event.x, event.y)
     if clickedButton != None:
-        text, mode = clickedButton
-        switchMode(app, mode)
+        text, action = clickedButton
+        action()
 
 def menuMode_keyPressed(app, event):
     commonKeyPressed(app, event)
@@ -94,6 +94,13 @@ def menuMode_redrawAll(app, canvas):
     drawMenuButtons(app, canvas)
     drawHelpText(app, canvas)
     drawHelp(app, canvas)
+
+###################################################
+# Settings Mode 
+###################################################
+
+def loadSettingsMode(app):
+    pass
 
 ###################################################
 # Level Select Mode 
@@ -178,6 +185,9 @@ def drawLevelList(app, canvas):
 def drawLevelSelectTitle(app, canvas):
     drawTitle(app, canvas, "Level Select")
 
+def drawLevelCreationHelpText(app, canvas):
+    canvas.create_text(app.width // 2, app.height // 5, text="Press 'C' to create your own level!", font='Arial 16')
+
 def levelSelectMode_mousePressed(app, event):
     clicked = getClickedLevelButton(app, event.x, event.y)
     if clicked != None:
@@ -192,28 +202,68 @@ def levelSelectMode_mousePressed(app, event):
 
 def levelSelectMode_keyPressed(app, event):
     commonKeyPressed(app, event)
+    if event.key == 'c' or event.key == 'C':
+        loadLevelCreation(app)
 
 def levelSelectMode_redrawAll(app, canvas):
     drawLevelSelectTitle(app, canvas)
-    drawHelpText(app, canvas)
+    drawLevelCreationHelpText(app, canvas)
     drawLevelList(app, canvas)
+    drawHelpText(app, canvas)
+    drawHelp(app, canvas)
+
+###################################################
+# Level Creation Mode
+###################################################
+
+def loadLevelCreation(app):
+    pass
 
 ###################################################
 # Instruction Mode 
 ###################################################
+
+def loadInstructions(app):
+    app.mode = 'instructionMode'
+    app.currentInstructionIndex = 0
+    app.instructions = [
+        ('Instructions', 'This is the page you are on.'),
+        ('Level Select', 'All sorts of cool information about level select mode.'),
+        ('Game Mode', 'This is where you actually play the game. Who knew?'),
+        ('Results Page', 'This is where you find out how terrible you are at the game.'),
+        ('Level Creation', 'This is how to create a new level.'),
+        ('High Scores', 'This is where you see how much better your friends are at the game than you.'),
+        ('Settings', 'Not much, yet.')
+    ]
 
 def drawInstructionsTitle(app, canvas):
     drawTitle(app, canvas, "Instructions")
 
 def instructionMode_keyPressed(app, event):
     commonKeyPressed(app, event)
+    if event.key == 'Left' and app.currentInstructionIndex > 0:
+        app.currentInstructionIndex -= 1
+    elif event.key == 'Right':
+        if app.currentInstructionIndex == len(app.instructions) - 1:
+            loadMenu(app)
+        else:
+            app.currentInstructionIndex += 1
 
+def drawInstructionNavigation(app, canvas):
+    canvas.create_text(app.width // 2, app.height // 5, text='Press the left and right arrow keys to change instruction pages.')
+    canvas.create_text(app.width // 2, app.height // 5 + 20, text=f'Page: {app.currentInstructionIndex + 1} / {len(app.instructions)}')
 
-
+def drawInstructions(app, canvas):
+    instructionTitle, instructionText = app.instructions[app.currentInstructionIndex]
+    canvas.create_text(app.width // 2, app.height // 5 + 50, text=instructionTitle, font='Arial 16 bold')
+    canvas.create_text(app.width // 2, app.height // 5 + 75, text=instructionText, font='Arial 12')
 
 def instructionMode_redrawAll(app, canvas):
     drawInstructionsTitle(app, canvas)
+    drawInstructionNavigation(app, canvas)
+    drawInstructions(app, canvas)
     drawHelpText(app, canvas)
+    drawHelp(app, canvas)
 
 ###################################################
 # Score Mode 
@@ -348,6 +398,7 @@ def scoreMode_redrawAll(app,canvas):
     else:
         drawActiveScorePage(app, canvas)
     drawHelpText(app, canvas)
+    drawHelp(app, canvas)
 
 ###################################################
 # Game Mode 
@@ -538,98 +589,152 @@ def drawTopBar(app, canvas):
                         font='Arial 16 bold',
                         text=f'P: {int(100 * app.progress)}%')
 
+def getNoteLocation(app, canvas, direction, proportion):
+    verticalCenter = 100
+    startingVerticalCenter = app.height + 70
+    leftCenter = app.width / 5
+    downCenter = 2 * app.width / 5
+    upCenter = 3 * app.width / 5
+    rightCenter = 4 * app.width / 5
+    noteVerticalCenter = verticalCenter + proportion * (startingVerticalCenter - verticalCenter)
+    if direction == 'left':
+        x, y = leftCenter, noteVerticalCenter
+    elif direction == 'down':
+        x, y = downCenter, noteVerticalCenter
+    elif direction == 'up':
+        x, y = upCenter, noteVerticalCenter
+    elif direction == 'right':
+        x, y = rightCenter, noteVerticalCenter
+    # We potentially want to rotate about the center of our app.
+    cx, cy = app.width // 2, app.height // 2
+    dx, dy = x - cx, y - cy
+    if app.travelDirection == 'left':
+        return dy + cx, -dx + cy
+    elif app.travelDirection == 'down':
+        return -dx + cx, -dy + cy
+    elif app.travelDirection == 'up':
+        return dx + cx, dy + cy
+    elif app.travelDirection == 'right':
+        return -dy + cx, dx + cy
+
 def gameMode_redrawAll(app, canvas):
     if app.readyToStart:
         canvas.create_text(app.width/2, app.height/2, 
                     text="Press any key to start.", font="Arial 30 bold")
         return None
     drawTopBar(app, canvas)
-    arrowHeight = 60
-    arrowWidth = 50
-    verticalCenter = 100
 
-    startingVerticalCenter = app.height + arrowHeight
+    leftX, leftY = getNoteLocation(app, canvas, 'left', 0)
+    app.shapeToDraw[app.shape](app, canvas, leftX, leftY, 'left')
 
-    leftCenter = app.width / 5
-    leftLeft = leftCenter - arrowHeight / 2
-    leftRight = leftCenter + arrowHeight / 2
-    leftTop = verticalCenter - arrowWidth / 2
-    leftMiddle = verticalCenter
-    leftBottom = verticalCenter + arrowWidth / 2
-    canvas.create_polygon(leftLeft, leftMiddle,
-                          leftRight, leftTop,
-                          leftRight, leftBottom,
-                          outline='green', fill='lightGreen', width=3)
+    downX, downY = getNoteLocation(app, canvas, 'down', 0)
+    app.shapeToDraw[app.shape](app, canvas, downX, downY, 'down')
 
-    downCenter = 2 * app.width / 5
-    downLeft = downCenter - arrowWidth / 2
-    downMiddle = downCenter
-    downRight = downCenter + arrowWidth / 2
-    downTop = verticalCenter - arrowHeight / 2
-    downBottom = verticalCenter + arrowHeight / 2
-    canvas.create_polygon(downLeft, downTop,
-                          downRight, downTop,
-                          downMiddle, downBottom,
-                          outline='purple', fill='violet', width=3)
+    upX, upY = getNoteLocation(app, canvas, 'up', 0)
+    app.shapeToDraw[app.shape](app, canvas, upX, upY, 'up')
 
-    upCenter = 3 * app.width / 5
-    upLeft = upCenter - arrowWidth / 2
-    upMiddle = upCenter
-    upRight = upCenter + arrowWidth / 2
-    upTop = verticalCenter - arrowHeight / 2
-    upBottom = verticalCenter + arrowHeight / 2
-    canvas.create_polygon(upLeft, upBottom,
-                          upMiddle, upTop,
-                          upRight, upBottom,
-                          outline='red', fill='pink', width=3)
+    rightX, rightY = getNoteLocation(app, canvas, 'right', 0)
+    app.shapeToDraw[app.shape](app, canvas, rightX, rightY, 'right')
 
-    rightCenter = 4 * app.width / 5
-    rightLeft = rightCenter - arrowHeight / 2
-    rightRight = rightCenter + arrowHeight / 2
-    rightTop = verticalCenter - arrowWidth / 2
-    rightMiddle = verticalCenter
-    rightBottom = verticalCenter + arrowWidth / 2
-    canvas.create_polygon(rightLeft, rightBottom,
-                          rightLeft, rightTop,
-                          rightRight, rightMiddle,
-                          outline='blue', fill='lightBlue', width=3)
-    
     # Draw the upcoming notes in the proper position on the page.
     for direction, proportion in app.notesToDisplay:
-        noteVerticalCenter = verticalCenter + proportion * (
-            startingVerticalCenter - verticalCenter
-        )
-        if direction == 'left':
-            top = noteVerticalCenter - arrowWidth / 2
-            middle = noteVerticalCenter
-            bottom = noteVerticalCenter + arrowWidth / 2
-            canvas.create_polygon(leftLeft, middle,
-                                  leftRight, top,
-                                  leftRight, bottom,
-                                  outline='green', fill='lightGreen', width=3)
-        elif direction == 'down':
-            top = noteVerticalCenter - arrowHeight / 2
-            bottom = noteVerticalCenter + arrowHeight / 2
-            canvas.create_polygon(downLeft, top,
-                                  downRight, top,
-                                  downMiddle, bottom,
-                                  outline='purple', fill='violet', width=3)
-        elif direction == 'up':
-            top = noteVerticalCenter - arrowHeight / 2
-            bottom = noteVerticalCenter + arrowHeight / 2
-            canvas.create_polygon(upLeft, bottom,
-                                  upMiddle, top,
-                                  upRight, bottom,
-                                  outline='red', fill='pink', width=3)
-        elif direction == 'right':
-            top = noteVerticalCenter - arrowWidth / 2
-            middle = noteVerticalCenter
-            bottom = noteVerticalCenter + arrowWidth / 2
-            canvas.create_polygon(rightLeft, bottom,
-                                  rightLeft, top,
-                                  rightRight, middle,
-                                  outline='blue', fill='lightBlue', width=3)
-    
+        noteX, noteY = getNoteLocation(app, canvas, direction, proportion)
+        app.shapeToDraw[app.shape](app, canvas, noteX, noteY, direction)
+
+###################################################
+# Note Style Helpers
+###################################################
+
+def drawArrowNote(app, canvas, x, y, direction):
+    arrowHeight = 60
+    arrowWidth = 50
+    arrowThiccness = 12
+    outline, fill = app.directionColors[direction]
+    # Let's figure out where the points are if our center is at (0, 0) and
+    # our arrow points 'up'. This allows us to get the other directions
+    # using a simple rotation by 90 degrees.
+    dx1 = 0
+    dx2 = arrowWidth // 2
+    dx3 = dx2
+    dx4 = arrowThiccness // 2
+    dx5 = dx4
+    dx6 = dx5 - arrowThiccness
+    dx7 = dx6
+    dx8 = -arrowWidth // 2
+    dx9 = dx8
+    dy1 = -arrowHeight // 2
+    dy2 = -arrowThiccness
+    dy3 = 0
+    slope = (dy2 - dy1) / (dx2 - dx1)
+    dy4 = dy1 + slope * dx4 + arrowThiccness
+    dy5 = arrowHeight // 2
+    dy6 = dy5
+    dy7 = dy4
+    dy8 = dy3
+    dy9 = dy2
+    dxdys = [(dx1, dy1), (dx2, dy2), (dx3, dy3), (dx4, dy4), (dx5, dy5), (dx6, dy6), (dx7, dy7), (dx8, dy8), (dx9, dy9)]
+    if direction == 'left':
+        xys = [(x + dy, y - dx) for (dx, dy) in dxdys]
+    elif direction == 'down':
+        xys = [(x - dx, y - dy) for (dx, dy) in dxdys]
+    elif direction == 'up':
+        xys = [(x + dx, y + dy) for (dx, dy) in dxdys]
+    elif direction == 'right':
+        xys = [(x - dy, y + dx) for (dx, dy) in dxdys]
+    canvas.create_polygon(xys, outline=outline, fill=fill, width = 3)
+
+def drawTriangleNote(app, canvas, x, y, direction):
+    arrowHeight = 60
+    arrowWidth = 50
+    outline, fill = app.directionColors[direction]
+    if direction == 'left':
+        x1 = x - arrowHeight // 2
+        x2 = x1 + arrowHeight
+        x3 = x2
+        y1 = y
+        y2 = y - arrowWidth // 2
+        y3 = y2 + arrowWidth
+    elif direction == 'down':
+        x1 = x - arrowWidth // 2
+        x2 = x1 + arrowWidth
+        x3 = x
+        y1 = y - arrowHeight // 2
+        y2 = y1
+        y3 = y2 + arrowHeight
+    elif direction == 'up':
+        x1 = x - arrowWidth // 2
+        x2 = x
+        x3 = x1 + arrowWidth
+        y1 = y + arrowHeight // 2
+        y2 = y1 - arrowHeight
+        y3 = y1
+    elif direction == 'right':
+        x1 = x - arrowHeight // 2
+        x2 = x1 + arrowHeight
+        x3 = x1
+        y1 = y - arrowWidth // 2
+        y2 = y
+        y3 = y1 + arrowWidth
+    canvas.create_polygon(x1, y1, x2, y2, x3, y3,
+                          outline=outline, fill=fill, width=3)
+
+def drawSquareNote(app, canvas, x, y, direction):
+    noteSideLength = 50
+    x1 = x - noteSideLength // 2
+    x2 = x1 + noteSideLength
+    y1 = y - noteSideLength // 2
+    y2 = y1 + noteSideLength
+    outline, fill = app.directionColors[direction]
+    canvas.create_rectangle(x1, y1, x2, y2, outline=outline, fill=fill, width=3)
+
+def drawCircleNote(app, canvas, x, y, direction):
+    noteR = 30
+    x1 = x - noteR
+    x2 = x + noteR
+    y1 = y - noteR
+    y2 = y + noteR
+    outline, fill = app.directionColors[direction]
+    canvas.create_oval(x1, y1, x2, y2, outline=outline, fill=fill, width=3)
 
 ###################################################
 # Results Page 
@@ -660,7 +765,7 @@ def loadResultsPage(app):
         }
     for score, _, _, _, _ in app.noteScores:
         app.counts[score] += 1
-    app.resultsButtons = [('Settings', lambda: None),
+    app.resultsButtons = [('Settings', lambda: loadSettingsMode(app)),
                           ('Level Select', lambda: loadLevelSelect(app)),
                           ('Replay', lambda: loadLevel(app, app.currLevelName)),
                           ('Save Score', lambda: saveScore(app))]
@@ -698,6 +803,9 @@ def resultsPage_mousePressed(app, event):
     if clickedButton != None:
         text, action = clickedButton
         action()
+
+def resultsPage_keyPressed(app, event):
+    commonKeyPressed(app, event)
 
 def getTimeFromScore(score):
     return score[4]
@@ -838,32 +946,38 @@ def resultsPage_redrawAll(app, canvas):
     drawTotals(app, canvas)
     drawResultsButtons(app, canvas)
     drawCounts(app, canvas)
+    # We omit the help text because it overlaps with the navigation buttons.
+    drawHelp(app, canvas)
 
 ###################################################
 # Main App 
 ###################################################
 
 def appStarted(app):
-    app.mode = "menuMode"
-    createMenuButtons(app)
     app.displayHelp = False
     app.levelsPerPage = 5
-    app.arrowDirection = 'Up'
     app.arrowSpeed = 1
-    app.arrowShape = 'Triangle'
+    app.travelDirection = 'left'
+    app.shape = 'arrow'
+    app.shapeToDraw = {
+        'arrow': drawArrowNote,
+        'triangle': drawTriangleNote,
+        'square': drawSquareNote,
+        'circle': drawCircleNote
+    }
     app.keyBinds = {
             'Left': 'left',
             'Right': 'right',
             'Up': 'up',
             'Down': 'down'
         }
+    app.directionColors = {
+        'left': ('green', 'lightGreen'),
+        'down': ('purple', 'violet'),
+        'up': ('red', 'pink'),
+        'right': ('blue', 'lightBlue')
+    }
     app.timerDelay = 25
-
-def createMenuButtons(app):
-    buttons = [("Select Level", "levelSelectMode"), 
-                ("Instructions", "instructionMode"),
-                ("Scores", "scoreMode")]
-    app.menuButtons = buttons
-
+    loadMenu(app)
 
 runApp(width=500, height=500, mvcCheck=False)
