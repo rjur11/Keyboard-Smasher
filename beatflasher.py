@@ -99,8 +99,220 @@ def menuMode_redrawAll(app, canvas):
 # Settings Mode 
 ###################################################
 
+class RadioButton(object):
+    def __init__(self, x, y, label, isEnabled, whenClicked):
+        self.x = x
+        self.y = y
+        self.label = label
+        self.isEnabled = isEnabled
+        self.whenClicked = whenClicked
+    
+    def _getButtonLocation(self):
+        x1 = self.x - 10
+        y1 = self.y - 10
+        x2 = self.x + 10
+        y2 = self.y + 10
+        return x1, y1, x2, y2
+
+    def drawButton(self, canvas):
+        x1, y1, x2, y2 = self._getButtonLocation()
+        if self.isEnabled():
+            fill = 'black'
+        else:
+            fill = 'white'
+        canvas.create_rectangle(x1, y1, x2, y2, fill=fill, width=2)
+        canvas.create_text(x2 + 5, (y1 + y2) // 2, text=self.label, anchor='w')
+
+    def handleClick(self, x, y):
+        x1, y1, x2, y2 = self._getButtonLocation()
+        if x1 <= x <= x2 and y1 <= y <= y2:
+            self.whenClicked()
+    
+    def handleKey(self, key):
+        return False
+
+class KeybindButton(object):
+    def __init__(self, x, y, label, getBinding, setBinding):
+        self.x = x
+        self.y = y
+        self.label = label
+        self.getBinding = getBinding
+        self.setBinding = setBinding
+        self.isActive = False
+    
+    def _getButtonLocation(self):
+        x1 = self.x - 25
+        y1 = self.y - 15
+        x2 = self.x + 25
+        y2 = self.y + 15
+        return x1, y1, x2, y2
+
+    def drawButton(self, canvas):
+        x1, y1, x2, y2 = self._getButtonLocation()
+        if self.isActive:
+            fill = 'lightGreen'
+        else:
+            fill = 'pink'
+        canvas.create_rectangle(x1, y1, x2, y2, fill=fill, width=2)
+        canvas.create_text((x1 + x2) // 2, (y1 + y2) // 2, text=self.getBinding())
+        canvas.create_text(x2 + 5, (y1 + y2) // 2, text=self.label, anchor='w')
+
+    def handleClick(self, x, y):
+        x1, y1, x2, y2 = self._getButtonLocation()
+        if x1 <= x <= x2 and y1 <= y <= y2:
+            self.isActive = True
+    
+    def handleKey(self, key):
+        if self.isActive:
+            self.setBinding(key)
+            self.isActive = False
+            return True
+        return False
+
+def settingsMode_mousePressed(app, event):
+    for button in app.settingsButtons:
+        button.handleClick(event.x, event.y)
+
+def settingsMode_keyPressed(app, event):
+    keyHandledByButton = False
+    for button in app.settingsButtons:
+        if button.handleKey(event.key):
+            keyHandledByButton = True
+    if keyHandledByButton:
+        return None
+    commonKeyPressed(app, event)
+
+def drawSettingsButtons(app, canvas):
+    for button in app.settingsButtons:
+        button.drawButton(canvas)
+
+def drawRowLabels(app, canvas):
+    def drawRowLabel(y, text):
+        canvas.create_text(10, y, text=text, anchor='w', font='Arial 10 bold')
+    drawRowLabel(100, 'Arrow Direction:')
+    drawRowLabel(170, 'Arrow Speed:')
+    drawRowLabel(240, 'Keybindings:')
+    drawRowLabel(310, 'Arrow Shape:')
+    drawRowLabel(380, 'Background:')
+
+def settingsMode_redrawAll(app, canvas):
+    drawTitle(app, canvas, 'Settings')
+    drawRowLabels(app, canvas)
+    drawSettingsButtons(app, canvas)
+    drawHelpText(app, canvas)
+    drawHelp(app, canvas)
+
 def loadSettingsMode(app):
-    pass
+    app.mode = 'settingsMode'
+    
+    directionY = 100
+    directionLeft = app.width // 2 - 100
+    directionRight = app.width - 60
+    directionStep = (directionRight - directionLeft) // 3
+    def getDirectionIsEnabled(direction):
+        def isEnabled():
+            return app.travelDirection == direction
+        return isEnabled
+    def getDirectionWhenClicked(direction):
+        def whenClicked():
+            app.travelDirection = direction
+        return whenClicked
+    directionButtons = [
+        RadioButton(directionLeft, directionY, 'Up', getDirectionIsEnabled('up'), getDirectionWhenClicked('up')),
+        RadioButton(directionLeft + directionStep, directionY, 'Down', getDirectionIsEnabled('down'), getDirectionWhenClicked('down')),
+        RadioButton(directionLeft + 2 * directionStep, directionY, 'Left', getDirectionIsEnabled('left'), getDirectionWhenClicked('left')),
+        RadioButton(directionLeft + 3 * directionStep, directionY, 'Right', getDirectionIsEnabled('right'), getDirectionWhenClicked('right')),
+    ]
+
+    def getSpeedIsEnabled(speed):
+        def isEnabled():
+            return app.arrowSpeed == speed
+        return isEnabled
+    def getSpeedWhenClicked(speed):
+        def whenClicked():
+            app.arrowSpeed = speed
+        return whenClicked
+    speedY = 170
+    speedLeft = app.width // 2 - 100
+    speedRight = app.width - 60
+    speedStep = (speedRight - speedLeft) // 4
+    speedButtons = [
+        RadioButton(speedLeft, speedY, '1', getSpeedIsEnabled(1), getSpeedWhenClicked(1)),
+        RadioButton(speedLeft + speedStep, speedY, '2', getSpeedIsEnabled(2), getSpeedWhenClicked(2)),
+        RadioButton(speedLeft + 2 * speedStep, speedY, '3', getSpeedIsEnabled(3), getSpeedWhenClicked(3)),
+        RadioButton(speedLeft + 3 * speedStep, speedY, '4', getSpeedIsEnabled(4), getSpeedWhenClicked(4)),
+        RadioButton(speedLeft + 4 * speedStep, speedY, '5', getSpeedIsEnabled(5), getSpeedWhenClicked(5)),
+    ]
+
+    keyY = 240
+    keyLeft = app.width // 2 - 100
+    keyRight = app.width - 80
+    keyStep = (keyRight - keyLeft) // 3
+    def getGetBinding(direction):
+        def getBinding():
+            for key in app.keyBinds:
+                if app.keyBinds[key] == direction:
+                    return key
+            return None
+        return getBinding
+    def getSetBinding(direction):
+        def setBinding(key):
+            keyBindKeyToDelete = None
+            for keyBindKey in app.keyBinds:
+                if app.keyBinds[keyBindKey] == direction:
+                    keyBindKeyToDelete = keyBindKey
+            if keyBindKeyToDelete != None:
+                del app.keyBinds[keyBindKeyToDelete]
+            app.keyBinds[key] = direction
+        return setBinding
+    keyButtons = [
+        KeybindButton(keyLeft, keyY, 'Left', getGetBinding('left'), getSetBinding('left')),
+        KeybindButton(keyLeft + keyStep, keyY, 'Right', getGetBinding('right'), getSetBinding('right')),
+        KeybindButton(keyLeft + 2 * keyStep, keyY, 'Up', getGetBinding('up'), getSetBinding('up')),
+        KeybindButton(keyLeft + 3 * keyStep, keyY, 'Down', getGetBinding('down'), getSetBinding('down')),
+    ]
+
+    shapeY = 310
+    shapeLeft = app.width // 2 - 100
+    shapeRight = app.width - 60
+    shapeStep = (shapeRight - shapeLeft) // 3
+    def getShapeIsEnabled(shape):
+        def isEnabled():
+            return app.shape == shape
+        return isEnabled
+    def getShapeWhenClicked(shape):
+        def whenClicked():
+            app.shape = shape
+        return whenClicked
+    shapeButtons = [
+        RadioButton(shapeLeft, shapeY, 'Arrow', getShapeIsEnabled('arrow'), getShapeWhenClicked('arrow')),
+        RadioButton(shapeLeft + shapeStep, shapeY, 'Triangle', getShapeIsEnabled('triangle'), getShapeWhenClicked('triangle')),
+        RadioButton(shapeLeft + 2 * shapeStep, shapeY, 'Square', getShapeIsEnabled('square'), getShapeWhenClicked('square')),
+        RadioButton(shapeLeft + 3 * shapeStep, shapeY, 'Circle', getShapeIsEnabled('circle'), getShapeWhenClicked('circle')),
+    ]
+
+    backgroundDirs = os.listdir('bgs/')
+    bgY = 380
+    bgLeft = app.width // 2 - 100
+    bgRight = app.width - 60
+    bgStep = (bgRight - bgLeft) // (len(backgroundDirs))
+    def getBgIsEnabled(i):
+        def isEnabled():
+            if i == None:
+                return app.background == None
+            return app.background == backgroundDirs[i]
+        return isEnabled
+    def getBgWhenClicked(i):
+        def whenClicked():
+            if i == None:
+                app.background = None
+                return None
+            app.background = backgroundDirs[i]
+        return whenClicked
+    bgButtons = ([RadioButton(bgLeft, bgY, 'None', getBgIsEnabled(None), getBgWhenClicked(None))] +
+        [RadioButton(bgLeft + (i + 1) * bgStep, bgY, backgroundDirs[i], getBgIsEnabled(i), getBgWhenClicked(i)) for i in range(len(backgroundDirs))])
+
+    app.settingsButtons = directionButtons + speedButtons + keyButtons + shapeButtons + bgButtons
 
 ###################################################
 # Level Select Mode 
@@ -217,7 +429,10 @@ def levelSelectMode_redrawAll(app, canvas):
 ###################################################
 
 def loadLevelCreation(app):
-    pass
+    app.mode = 'levelCreation'
+
+def levelCreation_redrawAll(app, canvas):
+    canvas.create_text(app.width // 2, app.height // 2, text='Level Creation')
 
 ###################################################
 # Instruction Mode 
@@ -481,8 +696,17 @@ def loadLevelFile(app, filename):
     app.currLevel = parseLevel(f.read())
     f.close()
 
+def loadBackgroundAnimation(app):
+    app.backgroundIndex = None
+    if app.background == None:
+        return None
+    directory = 'bgs/' + app.background
+    app.backgroundImages = [ImageTk.PhotoImage(app.loadImage(directory + '/' + filename)) for filename in os.listdir(directory)]
+    app.backgroundIndex = 0
+
 def loadLevel(app, level):
     loadLevelFile(app, f'levels/{level}.txt')
+    loadBackgroundAnimation(app)
     app.currLevelName = level
     app.mode = "gameMode"
     app.readyToStart = True
@@ -572,6 +796,10 @@ def gameMode_timerFired(app):
     # Once all notes have been finished, ends level and loads results.
     if app.missedIndex == len(app.currLevel):
         loadResultsPage(app)
+    
+    # Update the background image index.
+    if app.backgroundIndex != None:
+        app.backgroundIndex = (app.backgroundIndex + 1) % len(app.backgroundImages)
 
 def gameMode_keyPressed(app, event):
     if app.readyToStart:
@@ -622,7 +850,13 @@ def gameMode_keyPressed(app, event):
                                     app.score, elapsed)
         app.max_combo = max(app.combo, app.max_combo)
 
+def drawBackground(app, canvas):
+    if app.backgroundIndex != None:
+        canvas.create_image(app.width // 2, app.height // 2, image=app.backgroundImages[app.backgroundIndex])
+
 def drawTopBar(app, canvas):
+    # Create a white background rectangle so that the top bar text is readable.
+    canvas.create_rectangle(0, 0, app.width, 40, fill='white')
     score_x = 0
     score_y = 20
     canvas.create_text(score_x, score_y,
@@ -676,6 +910,7 @@ def gameMode_redrawAll(app, canvas):
         canvas.create_text(app.width/2, app.height/2, 
                     text="Press any key to start.", font="Arial 30 bold")
         return None
+    drawBackground(app, canvas)
     drawTopBar(app, canvas)
 
     leftX, leftY = getNoteLocation(app, canvas, 'left', 0)
@@ -1011,6 +1246,7 @@ def appStarted(app):
     app.displayHelp = False
     app.levelsPerPage = 5
     app.arrowSpeed = 1
+    app.background = None
     app.travelDirection = 'up'
     app.shape = 'arrow'
     app.shapeToDraw = {
