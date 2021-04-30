@@ -227,13 +227,66 @@ def loadInstructions(app):
     app.mode = 'instructionMode'
     app.currentInstructionIndex = 0
     app.instructions = [
-        ('Instructions', 'This is the page you are on.'),
-        ('Level Select', 'All sorts of cool information about level select mode.'),
-        ('Game Mode', 'This is where you actually play the game. Who knew?'),
-        ('Results Page', 'This is where you find out how terrible you are at the game.'),
-        ('Level Creation', 'This is how to create a new level.'),
-        ('High Scores', 'This is where you see how much better your friends are at the game than you.'),
-        ('Settings', 'Not much, yet.')
+        ('Instructions', ['To cycle through the different instructions pages,',
+                          'please use the left and right arrow keys. If you’ve',
+                          'reached the final page and click right again, you',
+                          'will return to the main menu. The pages are as ',
+                          'follows:',
+                          '\t• Level Select',
+                          '\t• Game Mode',
+                          '\t• Results Page',
+                          '\t• Level Creation',
+                          '\t• High Scores',
+                          '\t• Settings']),
+        ('Select Level', ['All playable levels can be found on this page.',
+                          'You are able to click on any level title to start',
+                          'playing that level. Each page will hold up to five',
+                          'titles. Feel free to click through the “next” and',
+                          '“previous” pages to access other levels.',
+                          '\nYou will also be able to access level creation',
+                          'mode by clicking “C” or the settings page by',
+                          'clicking “S”.']),
+        ('Game Mode', ['Once you’ve selected your level, click any key to',
+        'start the game.The game “board” is set up with a top bar that tracks',
+        'your score over the course of the game, your combo count (which will',
+        'reset when you miss an arrow), and a level progress tracker.',
+        '\nTo score points, you must accurately line up the scrolling arrows',
+        'with the corresponding static arrows by pressing the arrow key that',
+        'matches that arrow’s direction at the correct time. The more accurate',
+        'you are at lining up the arrows, the better your score is. Scoring',
+        'works as follows:',
+        '\t• Perfect (< 0.05 seconds): 10 points',
+        '\t• Good (< 0.1 seconds): 5 points',
+        '\t• Ok (> 0.1 seconds): 2 points',
+        '\t• Miss( > 0.2 seconds): -5 points',
+        '\t• Combo multiplier: score * 0.1, up to a max combo of 4x',
+        '\nThe level will be completed if you successfully make it through the',
+        'entire arrow pattern.']),
+        ('Results Page', ['The results page will provide an overview of the',
+                          'level you just completed. It tracks your total',
+                          'score, time spent in the level, your highest combo,',
+                          'and the totals of each type of “accuracy”',
+                          '(aka Perfect, Good, Ok, Miss).',
+                          '\nYou will also see a graph that tracks two things',
+                          'over the course of the level: your combo (in black)',
+                          'and your total score (in blue).',
+                          '\nFinally, you will have the opportunity to adjust',
+                          'your game settings, replay that level, return to',
+                          'the level select page, or save your score in',
+                          'the high scores list.']),
+        ('Level Creation', ['This is how to create a new level.']),
+        ('High Scores', ['You will be able to access the high scores lists of',
+                         'every playable level within the app. Once you’ve',
+                         'saved a score from your results page, head to the',
+                         'high scores page and select the level title you’d',
+                         'like to access. It will take you to the top 10',
+                         'scores on that level.']),
+        ('Settings', ['The settings page will allow you to customize many',
+                      'parts of the game, including arrow direction (the',
+                      'direction the arrows scroll across the page),',
+                      'arrow speed (the speed at which the arrows scroll',
+                      'across the page), key binds (want to use WASD instead',
+                      'of arrow keys?), and the arrow shape.'])
     ]
 
 def drawInstructionsTitle(app, canvas):
@@ -254,15 +307,16 @@ def drawInstructionNavigation(app, canvas):
     canvas.create_text(app.width // 2, app.height // 5 + 20, text=f'Page: {app.currentInstructionIndex + 1} / {len(app.instructions)}')
 
 def drawInstructions(app, canvas):
-    instructionTitle, instructionText = app.instructions[app.currentInstructionIndex]
+    instructionTitle, instructionLines = app.instructions[app.currentInstructionIndex]
+    instructionText = "\n".join(instructionLines)
     canvas.create_text(app.width // 2, app.height // 5 + 50, text=instructionTitle, font='Arial 16 bold')
-    canvas.create_text(app.width // 2, app.height // 5 + 75, text=instructionText, font='Arial 12')
+    canvas.create_text(app.width // 2, app.height // 5 + 100, text=instructionText, font='Arial 10', anchor="n")
 
 def instructionMode_redrawAll(app, canvas):
     drawInstructionsTitle(app, canvas)
     drawInstructionNavigation(app, canvas)
     drawInstructions(app, canvas)
-    drawHelpText(app, canvas)
+    #drawHelpText(app, canvas)
     drawHelp(app, canvas)
 
 ###################################################
@@ -957,7 +1011,7 @@ def appStarted(app):
     app.displayHelp = False
     app.levelsPerPage = 5
     app.arrowSpeed = 1
-    app.travelDirection = 'left'
+    app.travelDirection = 'up'
     app.shape = 'arrow'
     app.shapeToDraw = {
         'arrow': drawArrowNote,
