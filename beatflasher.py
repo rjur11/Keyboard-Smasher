@@ -5,6 +5,14 @@ import time
 from cmu_112_graphics import *
 
 ###################################################
+# Citations
+###################################################
+# Fez Background Image: From https://wallhaven.cc/w/01qpg4
+# Purp Background Animation: From https://www.videvo.net/video/glowing-purple-grid-lines-tracking-in/393674/
+# Spacetri Background Image: From https://wallhaven.cc/w/427j60
+
+
+###################################################
 # Common Helpers
 ###################################################
 
@@ -23,16 +31,30 @@ def commonKeyPressed(app, event):
         app.displayHelp = not app.displayHelp
 
 def drawHelpText(app, canvas):
+    canvas.create_rectangle(app.width//2 - 110, app.height - 40, app.width// 2 + 110, app.height - 20, fill="grey")
     canvas.create_text(app.width//2, app.height - 30, 
             text="Click 'H' to open shortcuts page.", font="Arial 10 bold")
 
 def drawHelp(app, canvas):
     if app.displayHelp:
-        canvas.create_rectangle(30, 30, app.width - 30, app.height - 30, fill="white")
+        canvas.create_rectangle(30, 100, app.width - 30, app.height - 100, fill="lightGrey")
+        helpLines = [
+            "Press any of the following keys",
+            "to jump around the app quickly:",
+            "",
+            "\t• 'M' = Menu Page",
+            "\t• 'L' = Load Level Page",
+            "\t• 'I' = Instructions Page",
+            "\t• 'S' = Scores Page",
+            "\t• 'E' = Settings Page",
+            "\t• 'H' = Display this shortcuts dialogue",
+        ]
+        canvas.create_text(app.width//2, app.height//2, 
+                          text="\n".join(helpLines), font="Arial 12 bold")
 
 def drawTitle(app, canvas, text):
     canvas.create_text(app.width/2, 30, text=text, 
-                        font="Arial 30 bold")
+                        font="Audiowide 30 bold")
 
 ###################################################
 # Menu Mode 
@@ -43,6 +65,7 @@ def loadMenu(app):
                        ("Instructions", lambda: loadInstructions(app)),
                        ("Scores", lambda: loadScoreMode(app))]
     app.mode = 'menuMode'
+    loadBackgroundAnimation(app)
 
 def getMenuButtonLocation(app, i):
     topY = app.height // 2
@@ -68,17 +91,28 @@ def menuMode_mousePressed(app, event):
         text, action = clickedButton
         action()
 
+def menuMode_timerFired(app):
+    if app.backgroundIndex != None:
+        app.backgroundIndex = (app.backgroundIndex + 1) % len(app.backgroundImages)
+
 def menuMode_keyPressed(app, event):
     commonKeyPressed(app, event)
 
 def drawMenuTitle(app, canvas):
     canvas.create_text(app.width/2, 30, text="Beat Flasher", 
-                        fill="red", font="Arial 30 bold")
+                        fill="red", font="Audiowide 30 bold")
     canvas.create_text(app.width/2, 30, text="Beat Flasher", 
-                        fill="white", font="Arial 28 bold")
+                        fill="white", font="Audiowide 28 bold")
 
 def drawMenuImage(app, canvas):
-    pass
+    left = app.width // 2 - 150
+    right = app.width // 2 + 150
+    step = (right - left) // 3
+    y = 145
+    app.shapeToDraw[app.shape](app, canvas, left, y, 'up')
+    app.shapeToDraw[app.shape](app, canvas, left + step, y, 'down')
+    app.shapeToDraw[app.shape](app, canvas, left + 2 * step, y, 'right')
+    app.shapeToDraw[app.shape](app, canvas, left + 3 * step, y, 'left')
 
 def drawMenuButtons(app, canvas):
     for i in range(len(app.menuButtons)):
@@ -86,9 +120,15 @@ def drawMenuButtons(app, canvas):
         canvas.create_rectangle(x1, y1, x2, y2, fill="white", width=2)
         canvas.create_text((x1 + x2)//2, (y1 + y2)//2, 
                 text=app.menuButtons[i][0], font="Arial 15 bold")
+def drawMenuBg(app, canvas):
+    if app.background == None:
+        canvas.create_rectangle(0, 0, app.width, app.height, fill="black")
+    else:
+        canvas.create_image(app.width // 2, app.height // 2, 
+                        image=app.backgroundImages[app.backgroundIndex])
 
 def menuMode_redrawAll(app, canvas):
-    canvas.create_rectangle(0, 0, app.width, app.height, fill="black")
+    drawMenuBg(app, canvas)
     drawMenuTitle(app, canvas)
     drawMenuImage(app, canvas)
     drawMenuButtons(app, canvas)
@@ -430,9 +470,50 @@ def levelSelectMode_redrawAll(app, canvas):
 
 def loadLevelCreation(app):
     app.mode = 'levelCreation'
+    app.paused = True
+    app.readyToStart = True
+    app.customLevel = []
 
+def levelToString(level):
+    result = ""
+    for direction, startTime, endTime in level:
+        result += (f'{direction},{startTime},'
+                     f'{endTime if endTime != None else ""}\n')
+    return result
+    
+def saveLevel(app):
+    levelName = app.getUserInput('What would you like to name your level?')
+    if (levelName == None):
+        return None
+    filename = f'levels/{levelName}.txt'
+    f = open(filename, 'w')
+    f.write(levelToString(app.customLevel))
+    f.close()
+
+def levelCreation_keyPressed(app, event):
+    if app.readyToStart:
+        app.paused = False
+        app.readyToStart = False
+        app.startTime = time.time()
+        return None
+    if event.key in app.keyBinds:
+        app.customLevel.append((app.keyBinds[event.key], time.time() - app.startTime, None))
+    elif event.key == "S" or event.key == "s":
+        saveLevel(app)
+        loadLevelSelect(app)
+       
 def levelCreation_redrawAll(app, canvas):
-    canvas.create_text(app.width // 2, app.height // 2, text='Level Creation')
+    if app.readyToStart:
+        canvas.create_text(app.width/2, app.height/2, 
+                    text="Press any key to start.", font="Audiowide 20 bold")
+        return None
+    else:
+        canvas.create_text(app.width/2, app.height/2, 
+                    text=("Use your chosen direction keys to create arrow "
+                     "patterns.\nPress 'S' to save and exit level creation."), 
+                     font="Arial 12 bold")
+        return None
+
 
 ###################################################
 # Instruction Mode 
@@ -476,7 +557,7 @@ def loadInstructions(app):
         '\t• Miss( > 0.2 seconds): -5 points',
         '\t• Combo multiplier: score * 0.1, up to a max combo of 4x',
         '\nThe level will be completed if you successfully make it through the',
-        'entire arrow pattern.']),
+        'entire arrow pattern. Press Q during a level to return to menu.']),
         ('Results Page', ['The results page will provide an overview of the',
                           'level you just completed. It tracks your total',
                           'score, time spent in the level, your highest combo,',
@@ -489,7 +570,18 @@ def loadInstructions(app):
                           'your game settings, replay that level, return to',
                           'the level select page, or save your score in',
                           'the high scores list.']),
-        ('Level Creation', ['This is how to create a new level.']),
+        ('Level Creation', ['To access the Level Creation page, click "C" on',
+                            'the Level Select screen. You will be prompted to',
+                            'press any key to begin. Once you have, you will',
+                            'then be able to press your assigned arrow keys',
+                            'in whatever pattern you would like, and the app',
+                            'will track it.',
+                            "",
+                            'When you are done creating your level, click "S"',
+                            'and you will be able to name your level.',
+                            'You will then be returned to the Select Level',
+                            'page, where your masterpiece will be waiting to',
+                            'be played!']),
         ('High Scores', ['You will be able to access the high scores lists of',
                          'every playable level within the app. Once you’ve',
                          'saved a score from your results page, head to the',
@@ -501,7 +593,7 @@ def loadInstructions(app):
                       'direction the arrows scroll across the page),',
                       'arrow speed (the speed at which the arrows scroll',
                       'across the page), key binds (want to use WASD instead',
-                      'of arrow keys?), and the arrow shape.'])
+                      'of arrow keys?), arrow shape, and backgrounds.'])
     ]
 
 def drawInstructionsTitle(app, canvas):
@@ -524,7 +616,7 @@ def drawInstructionNavigation(app, canvas):
 def drawInstructions(app, canvas):
     instructionTitle, instructionLines = app.instructions[app.currentInstructionIndex]
     instructionText = "\n".join(instructionLines)
-    canvas.create_text(app.width // 2, app.height // 5 + 50, text=instructionTitle, font='Arial 16 bold')
+    canvas.create_text(app.width // 2, app.height // 5 + 50, text=instructionTitle, font='Audiowide 16 bold')
     canvas.create_text(app.width // 2, app.height // 5 + 100, text=instructionText, font='Arial 10', anchor="n")
 
 def instructionMode_redrawAll(app, canvas):
@@ -597,7 +689,8 @@ def hasPrevScoreLevelPage(app):
 
 def hasNextScoreLevelPage(app):
     return (app.hasMultipleScoreLevelPages
-                and app.levelsPerPage * (app.scoreLevelPage+1) < len(app.scoreLevelList))
+                and (app.levelsPerPage * 
+                        (app.scoreLevelPage+1) < len(app.scoreLevelList)))
 
 def drawScoreLevelList(app, canvas):
     if hasPrevScoreLevelPage(app):
@@ -608,9 +701,11 @@ def drawScoreLevelList(app, canvas):
     for i in range(len(app.scoreLevelsToDisplay)):
         (x1, y1, x2, y2) = getScoreLevelButtonLocation(app, i + 1)
         canvas.create_rectangle(x1, y1, x2, y2, width=2)
-        canvas.create_text((x1+x2)/2, (y1+y2)/2, text=app.scoreLevelsToDisplay[i])
+        canvas.create_text((x1+x2)/2, (y1+y2)/2, 
+                          text=app.scoreLevelsToDisplay[i])
     if hasNextScoreLevelPage(app):
-        (x1, y1, x2, y2) = getScoreLevelButtonLocation(app, len(app.scoreLevelsToDisplay) + 1)
+        (x1, y1, x2, y2) = getScoreLevelButtonLocation(app, 
+                                len(app.scoreLevelsToDisplay) + 1)
         canvas.create_rectangle(x1, y1, x2, y2, width=2, fill='black')
         canvas.create_text((x1+x2)/2, (y1+y2)/2,
                             text='Next Page', fill='white')
@@ -849,6 +944,8 @@ def gameMode_keyPressed(app, event):
                                     combo_multiplier, app.combo, 
                                     app.score, elapsed)
         app.max_combo = max(app.combo, app.max_combo)
+    elif event.key == "Q" or event.key == "q":
+        loadMenu(app)
 
 def drawBackground(app, canvas):
     if app.backgroundIndex != None:
@@ -908,7 +1005,7 @@ def getNoteLocation(app, canvas, direction, proportion):
 def gameMode_redrawAll(app, canvas):
     if app.readyToStart:
         canvas.create_text(app.width/2, app.height/2, 
-                    text="Press any key to start.", font="Arial 30 bold")
+                    text="Press any key to start.", font="Audiowide 20 bold")
         return None
     drawBackground(app, canvas)
     drawTopBar(app, canvas)

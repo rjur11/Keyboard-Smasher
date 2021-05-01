@@ -10,3 +10,4 @@ Wreckerray,72.0
 JaysieEtta,56.0
 BlakeyJ,12341.67
 Robert,10.0
+Loser,10.0
