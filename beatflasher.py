@@ -1,5 +1,7 @@
 import math
 import os
+import pygame
+import shutil
 import tkinter as tk
 import time
 from cmu_112_graphics import *
@@ -56,6 +58,32 @@ def drawTitle(app, canvas, text):
     canvas.create_text(app.width/2, 30, text=text, 
                         font="Audiowide 30 bold")
 
+# From: https://www.cs.cmu.edu/~112/notes/notes-animations-part4.html
+class Sound(object):
+    def __init__(self, path=None):
+        self.path = path
+        self.loops = 1
+        if path != None:
+            pygame.mixer.music.load(path)
+
+    # Returns True if the sound is currently playing
+    def isPlaying(self):
+        return bool(pygame.mixer.music.get_busy())
+
+    # Loops = number of times to loop the sound.
+    # If loops = 1 or 1, play it once.
+    # If loops > 1, play it loops + 1 times.
+    # If loops = -1, loop forever.
+    def start(self, loops=1):
+        if self.path != None:
+            self.loops = loops
+            pygame.mixer.music.play(loops=loops)
+
+    # Stops the current sound from playing
+    def stop(self):
+        if self.path != None:
+            pygame.mixer.music.stop()
+
 ###################################################
 # Menu Mode 
 ###################################################
@@ -99,9 +127,9 @@ def menuMode_keyPressed(app, event):
     commonKeyPressed(app, event)
 
 def drawMenuTitle(app, canvas):
-    canvas.create_text(app.width/2, 30, text="Beat Flasher", 
+    canvas.create_text(app.width/2, 30, text="Keyboard Smasher", 
                         fill="red", font="Audiowide 30 bold")
-    canvas.create_text(app.width/2, 30, text="Beat Flasher", 
+    canvas.create_text(app.width/2, 30, text="Keyboard Smasher", 
                         fill="white", font="Audiowide 28 bold")
 
 def drawMenuImage(app, canvas):
@@ -468,11 +496,19 @@ def levelSelectMode_redrawAll(app, canvas):
 # Level Creation Mode
 ###################################################
 
+def promptForSong(app):
+    app.song = app.getUserInput(('What song would you like to use? Enter a path. Press \'cancel\' to not use a song.\n'
+                                 'Careful, if you get the filename wrong, the game will crash!!!'))
+    if app.song != None:
+        app.sound = Sound(app.song)
+
 def loadLevelCreation(app):
     app.mode = 'levelCreation'
     app.paused = True
     app.readyToStart = True
     app.customLevel = []
+    app.animationsToDisplay = []
+    promptForSong(app)
 
 def levelToString(level):
     result = ""
@@ -489,19 +525,37 @@ def saveLevel(app):
     f = open(filename, 'w')
     f.write(levelToString(app.customLevel))
     f.close()
+    if app.song != None:
+        extension = os.path.splitext(app.song)[-1]
+        shutil.copyfile(app.song, f'songs/{levelName}{extension}')
+
+def saveAndQuitLevelCreation(app):
+    saveLevel(app)
+    loadLevelSelect(app)
 
 def levelCreation_keyPressed(app, event):
     if app.readyToStart:
         app.paused = False
         app.readyToStart = False
         app.startTime = time.time()
+        if app.song != None:
+            app.sound.start()
         return None
     if event.key in app.keyBinds:
-        app.customLevel.append((app.keyBinds[event.key], time.time() - app.startTime, None))
+        keyDirection = app.keyBinds[event.key]
+        startAnimation(app, keyDirection)
+        app.customLevel.append((keyDirection, time.time() - app.startTime, None))
     elif event.key == "S" or event.key == "s":
-        saveLevel(app)
-        loadLevelSelect(app)
-       
+        app.sound.stop()
+        saveAndQuitLevelCreation(app)
+
+def levelCreation_timerFired(app):
+    if app.paused:
+        return None
+    updateAnimations(app)
+    if app.song != None and not app.sound.isPlaying():
+        saveAndQuitLevelCreation(app)
+
 def levelCreation_redrawAll(app, canvas):
     if app.readyToStart:
         canvas.create_text(app.width/2, app.height/2, 
@@ -512,6 +566,7 @@ def levelCreation_redrawAll(app, canvas):
                     text=("Use your chosen direction keys to create arrow "
                      "patterns.\nPress 'S' to save and exit level creation."), 
                      font="Arial 12 bold")
+        drawAnimations(app, canvas)
         return None
 
 
@@ -799,9 +854,18 @@ def loadBackgroundAnimation(app):
     app.backgroundImages = [ImageTk.PhotoImage(app.loadImage(directory + '/' + filename)) for filename in os.listdir(directory)]
     app.backgroundIndex = 0
 
+def loadSong(app, level):
+    for f in os.listdir('songs'):
+        root = os.path.splitext(f)[0]
+        if root == level:
+            app.sound = Sound(f'songs/{f}')
+            return None
+    app.sound = Sound()
+
 def loadLevel(app, level):
     loadLevelFile(app, f'levels/{level}.txt')
     loadBackgroundAnimation(app)
+    loadSong(app, level)
     app.currLevelName = level
     app.mode = "gameMode"
     app.readyToStart = True
@@ -810,6 +874,7 @@ def loadLevel(app, level):
     app.progress = 0
     app.missedIndex = 0
     app.notesToDisplay = []
+    app.animationsToDisplay = []
     app.noteScores = [None for note in app.currLevel]
     app.score = 0
     app.combo = 0
@@ -864,6 +929,17 @@ def getNotesWithinSeconds(app, seconds):
                                  for (direction, startTime, endTime) in notes]
     return directionsWithProportions
 
+def updateAnimations(app):
+    i = 0
+    while i < len(app.animationsToDisplay):
+        shape, direction, index, scoreCategory = app.animationsToDisplay[i]
+        newIndex = index + 1
+        if newIndex >= len(app.arrowAnimations[shape][direction]):
+            app.animationsToDisplay.pop(i)
+        else:
+            app.animationsToDisplay[i] = (shape, direction, newIndex, scoreCategory)
+            i += 1
+
 def gameMode_timerFired(app):
     if app.paused:
         return None
@@ -889,18 +965,30 @@ def gameMode_timerFired(app):
                                     combo_multiplier, app.combo, app.score, elapsed)
         app.missedIndex += 1
     # Once all notes have been finished, ends level and loads results.
-    if app.missedIndex == len(app.currLevel):
+    if app.missedIndex == len(app.currLevel) and not app.sound.isPlaying():
         loadResultsPage(app)
     
     # Update the background image index.
     if app.backgroundIndex != None:
         app.backgroundIndex = (app.backgroundIndex + 1) % len(app.backgroundImages)
+    
+    # Update the animations to display.
+    updateAnimations(app)
+
+def startAnimation(app, direction, scoreCategory=None):
+    for i in range(len(app.animationsToDisplay)):
+        shape, currDirection, index, scoreCategory = app.animationsToDisplay[i]
+        if currDirection == direction:
+            app.animationsToDisplay[i] = (shape, currDirection, 0, scoreCategory)
+            return None
+    app.animationsToDisplay.append((app.shape, direction, 0, scoreCategory))
 
 def gameMode_keyPressed(app, event):
     if app.readyToStart:
         app.readyToStart = False
         app.paused = False
         app.startTime = time.time()
+        app.sound.start()
         return None
     if event.key in app.keyBinds:
         elapsed = time.time() - app.startTime
@@ -926,25 +1014,31 @@ def gameMode_keyPressed(app, event):
             app.score -= 5
             app.misses.append((elapsed, app.score))
             app.combo = 0
+            scoreCategory = 'Miss'
         elif bestError < 0.05:
             app.score += 10 * combo_multiplier
             app.combo += 1
             app.noteScores[bestNoteIndex] = ('Perfect',
                                     combo_multiplier, app.combo, 
                                     app.score, elapsed)
+            scoreCategory = 'Perfect!'
         elif bestError < 0.1:
             app.score += 5 * combo_multiplier
             app.combo += 1
             app.noteScores[bestNoteIndex] = ('Good',
                                 combo_multiplier, app.combo, app.score, elapsed)
+            scoreCategory = 'Good'
         else:
             app.score += 2 * combo_multiplier
             app.combo = 0
             app.noteScores[bestNoteIndex] = ('OK', 
                                     combo_multiplier, app.combo, 
                                     app.score, elapsed)
+            scoreCategory = 'ok'
         app.max_combo = max(app.combo, app.max_combo)
+        startAnimation(app, keyDirection, scoreCategory)
     elif event.key == "Q" or event.key == "q":
+        app.sound.stop()
         loadMenu(app)
 
 def drawBackground(app, canvas):
@@ -1002,6 +1096,25 @@ def getNoteLocation(app, canvas, direction, proportion):
     elif app.travelDirection == 'right':
         return -dy + cx, dx + cy
 
+def drawAnimations(app, canvas):
+    for shape, direction, index, scoreCategory in app.animationsToDisplay:
+        x, y = getNoteLocation(app, canvas, direction, 0)
+        canvas.create_image(x, y, image=ImageTk.PhotoImage(app.arrowAnimations[shape][direction][index]))
+        if scoreCategory != None:
+            if direction == 'up':
+                fill='red'
+            elif direction == 'down':
+                fill='purple'
+            elif direction == 'right':
+                fill='blue'
+            elif direction == 'left':
+                fill='green'
+            canvas.create_text(x + 40 + index, y,
+                               text=scoreCategory,
+                               fill=fill,
+                               angle=30 + 0.5 * index,
+                               font='Audiowide 14')
+
 def gameMode_redrawAll(app, canvas):
     if app.readyToStart:
         canvas.create_text(app.width/2, app.height/2, 
@@ -1026,6 +1139,8 @@ def gameMode_redrawAll(app, canvas):
     for direction, proportion in app.notesToDisplay:
         noteX, noteY = getNoteLocation(app, canvas, direction, proportion)
         app.shapeToDraw[app.shape](app, canvas, noteX, noteY, direction)
+    
+    drawAnimations(app, canvas)
 
 ###################################################
 # Note Style Helpers
@@ -1339,6 +1454,30 @@ def resultsPage_redrawAll(app, canvas):
 # Main App 
 ###################################################
 
+# From: https://www.cs.cmu.edu/~112/notes/notes-animations-part4.html
+def generateAnimation(app, shape, direction):
+    result = []
+    baseImage = app.loadImage(f'images/{shape}_{direction}.png').convert("RGBA")
+    for i in range(9):
+        transparentImage = Image.new(mode="RGBA", size=baseImage.size)
+        for x in range(transparentImage.width):
+            for y in range(transparentImage.height):
+                r, g, b, a = baseImage.getpixel((x, y))
+                if a != 0:
+                    transparentImage.putpixel((x, y), (r, g, b, 255 - 30 * i))
+                else:
+                    transparentImage.putpixel((x, y), (r, g, b, a))
+        result.append(app.scaleImage(transparentImage, 1 + i / 9))
+    return result
+
+def loadArrowAnimations(app):
+    app.arrowAnimations = {}
+    for shape in app.shapeToDraw:
+        for direction in app.directionColors:
+            if shape not in app.arrowAnimations:
+                app.arrowAnimations[shape] = {}
+            app.arrowAnimations[shape][direction] = generateAnimation(app, shape, direction)
+
 def appStarted(app):
     app.displayHelp = False
     app.levelsPerPage = 5
@@ -1365,6 +1504,12 @@ def appStarted(app):
         'right': ('blue', 'lightBlue')
     }
     app.timerDelay = 25
+    pygame.mixer.init()
+    app.sound = Sound()
+    loadArrowAnimations(app)
     loadMenu(app)
 
-runApp(width=500, height=500, mvcCheck=False)
+def appStopped(app):
+    app.sound.stop()
+
+runApp(width=500, height=500)
