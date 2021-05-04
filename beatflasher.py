@@ -13,7 +13,6 @@ from cmu_112_graphics import *
 # Purp Background Animation: From https://www.videvo.net/video/glowing-purple-grid-lines-tracking-in/393674/
 # Spacetri Background Image: From https://wallhaven.cc/w/427j60
 
-
 ###################################################
 # Common Helpers
 ###################################################
