@@ -13,6 +13,7 @@ from cmu_112_graphics import *
 # Purp Background Animation: From https://www.videvo.net/video/glowing-purple-grid-lines-tracking-in/393674/
 # Spacetri Background Image: From https://wallhaven.cc/w/427j60
 
+
 ###################################################
 # Common Helpers
 ###################################################
@@ -1120,6 +1121,7 @@ def gameMode_redrawAll(app, canvas):
                     text="Press any key to start.", font="Audiowide 20 bold")
         return None
     drawBackground(app, canvas)
+    drawTopBar(app, canvas)
 
     leftX, leftY = getNoteLocation(app, canvas, 'left', 0)
     app.shapeToDraw[app.shape](app, canvas, leftX, leftY, 'left')
@@ -1138,7 +1140,6 @@ def gameMode_redrawAll(app, canvas):
         noteX, noteY = getNoteLocation(app, canvas, direction, proportion)
         app.shapeToDraw[app.shape](app, canvas, noteX, noteY, direction)
     
-    drawTopBar(app, canvas)
     drawAnimations(app, canvas)
 
 ###################################################
