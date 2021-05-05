@@ -1056,7 +1056,7 @@ def gameMode_timerFired(app):
 
 def startAnimation(app, direction, scoreCategory=None):
     for i in range(len(app.animationsToDisplay)):
-        shape, currDirection, index, scoreCategory = app.animationsToDisplay[i]
+        shape, currDirection, index, _ = app.animationsToDisplay[i]
         if currDirection == direction:
             app.animationsToDisplay[i] = (shape, currDirection, 0, scoreCategory)
             return None
