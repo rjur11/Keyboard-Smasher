@@ -1,6 +1,0 @@
-left,5,
-right,6,
-left,7,
-down,7,
-right,10,13
-left,12,

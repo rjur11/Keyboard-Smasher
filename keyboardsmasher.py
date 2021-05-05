@@ -12,12 +12,16 @@ from cmu_112_graphics import *
 # Fez Background Image: From https://wallhaven.cc/w/01qpg4
 # Purp Background Animation: From https://www.videvo.net/video/glowing-purple-grid-lines-tracking-in/393674/
 # Spacetri Background Image: From https://wallhaven.cc/w/427j60
-
+# Intergalatic Odyssey, Markalo goes to the disco, Su Turno, Dreaming
+#       music tracks: From https://patrickdearteaga.com/arcade-music/
+# DragonForce - Through the Fire and The Flames (Kutski 8 Bit Remake):
+#       From: https://www.lololyrics.com/free-8500
 
 ###################################################
 # Common Helpers
 ###################################################
 
+# Key shortcuts that will be used throughout the app.
 def commonKeyPressed(app, event):
     if event.key == "M" or event.key == "m":
         loadMenu(app)
@@ -32,14 +36,18 @@ def commonKeyPressed(app, event):
     elif event.key == "H" or event.key == "h":
         app.displayHelp = not app.displayHelp
 
+# Shortcut prompt text at bottom of main pages.
 def drawHelpText(app, canvas):
-    canvas.create_rectangle(app.width//2 - 110, app.height - 40, app.width// 2 + 110, app.height - 20, fill="grey")
+    canvas.create_rectangle(app.width//2 - 110, app.height - 40, 
+                    app.width// 2 + 110, app.height - 20, fill="grey")
     canvas.create_text(app.width//2, app.height - 30, 
             text="Click 'H' to open shortcuts page.", font="Arial 10 bold")
 
+# Shortcut text once page has opened.
 def drawHelp(app, canvas):
     if app.displayHelp:
-        canvas.create_rectangle(30, 100, app.width - 30, app.height - 100, fill="lightGrey")
+        canvas.create_rectangle(30, 100, app.width - 30, 
+                                app.height - 100, fill="lightGrey")
         helpLines = [
             "Press any of the following keys",
             "to jump around the app quickly:",
@@ -54,11 +62,13 @@ def drawHelp(app, canvas):
         canvas.create_text(app.width//2, app.height//2, 
                           text="\n".join(helpLines), font="Arial 12 bold")
 
+# Draws the title to each page that uses it.
 def drawTitle(app, canvas, text):
     canvas.create_text(app.width/2, 30, text=text, 
                         font="Audiowide 30 bold")
 
 # From: https://www.cs.cmu.edu/~112/notes/notes-animations-part4.html
+# Setting up audio capabilities for level creation and game mode.
 class Sound(object):
     def __init__(self, path=None):
         self.path = path
@@ -88,6 +98,7 @@ class Sound(object):
 # Menu Mode 
 ###################################################
 
+# Loads our initial menu page.
 def loadMenu(app):
     app.menuButtons = [("Select Level", lambda: loadLevelSelect(app)), 
                        ("Instructions", lambda: loadInstructions(app)),
@@ -95,6 +106,7 @@ def loadMenu(app):
     app.mode = 'menuMode'
     loadBackgroundAnimation(app)
 
+# Helper to find our menu button locations.
 def getMenuButtonLocation(app, i):
     topY = app.height // 2
     height = 30
@@ -121,7 +133,8 @@ def menuMode_mousePressed(app, event):
 
 def menuMode_timerFired(app):
     if app.backgroundIndex != None:
-        app.backgroundIndex = (app.backgroundIndex + 1) % len(app.backgroundImages)
+        app.backgroundIndex = ((app.backgroundIndex + 1) 
+                                % len(app.backgroundImages))
 
 def menuMode_keyPressed(app, event):
     commonKeyPressed(app, event)
@@ -132,6 +145,7 @@ def drawMenuTitle(app, canvas):
     canvas.create_text(app.width/2, 30, text="Keyboard Smasher", 
                         fill="white", font="Audiowide 28 bold")
 
+# Draws 4 colored "arrows" on the main menu page (or whatever shape settings is set to).
 def drawMenuImage(app, canvas):
     left = app.width // 2 - 150
     right = app.width // 2 + 150
@@ -148,6 +162,8 @@ def drawMenuButtons(app, canvas):
         canvas.create_rectangle(x1, y1, x2, y2, fill="white", width=2)
         canvas.create_text((x1 + x2)//2, (y1 + y2)//2, 
                 text=app.menuButtons[i][0], font="Arial 15 bold")
+
+# Draws the menu page background based off selection in settings.               
 def drawMenuBg(app, canvas):
     if app.background == None:
         canvas.create_rectangle(0, 0, app.width, app.height, fill="black")
@@ -167,6 +183,7 @@ def menuMode_redrawAll(app, canvas):
 # Settings Mode 
 ###################################################
 
+# Radiobutton class which handles the creation and manipulation of radio buttons in the settings page.
 class RadioButton(object):
     def __init__(self, x, y, label, isEnabled, whenClicked):
         self.x = x
@@ -185,9 +202,9 @@ class RadioButton(object):
     def drawButton(self, canvas):
         x1, y1, x2, y2 = self._getButtonLocation()
         if self.isEnabled():
-            fill = 'black'
+            fill = "black"
         else:
-            fill = 'white'
+            fill = "white"
         canvas.create_rectangle(x1, y1, x2, y2, fill=fill, width=2)
         canvas.create_text(x2 + 5, (y1 + y2) // 2, text=self.label, anchor='w')
 
@@ -199,6 +216,7 @@ class RadioButton(object):
     def handleKey(self, key):
         return False
 
+# Class that handles keybinds and adjusts them as set in the settings page.
 class KeybindButton(object):
     def __init__(self, x, y, label, getBinding, setBinding):
         self.x = x
@@ -218,9 +236,9 @@ class KeybindButton(object):
     def drawButton(self, canvas):
         x1, y1, x2, y2 = self._getButtonLocation()
         if self.isActive:
-            fill = 'lightGreen'
+            fill = "lightGreen"
         else:
-            fill = 'pink'
+            fill = "pink"
         canvas.create_rectangle(x1, y1, x2, y2, fill=fill, width=2)
         canvas.create_text((x1 + x2) // 2, (y1 + y2) // 2, text=self.getBinding())
         canvas.create_text(x2 + 5, (y1 + y2) // 2, text=self.label, anchor='w')
@@ -256,20 +274,22 @@ def drawSettingsButtons(app, canvas):
 
 def drawRowLabels(app, canvas):
     def drawRowLabel(y, text):
-        canvas.create_text(10, y, text=text, anchor='w', font='Arial 10 bold')
-    drawRowLabel(100, 'Arrow Direction:')
-    drawRowLabel(170, 'Arrow Speed:')
-    drawRowLabel(240, 'Keybindings:')
-    drawRowLabel(310, 'Arrow Shape:')
-    drawRowLabel(380, 'Background:')
+        canvas.create_text(10, y, text=text, anchor='w', font="Arial 10 bold")
+    drawRowLabel(100, "Arrow Direction:")
+    drawRowLabel(170, "Arrow Speed:")
+    drawRowLabel(240, "Keybindings:")
+    drawRowLabel(310, "Arrow Shape:")
+    drawRowLabel(380, "Background:")
 
 def settingsMode_redrawAll(app, canvas):
-    drawTitle(app, canvas, 'Settings')
+    drawTitle(app, canvas, "Settings")
     drawRowLabels(app, canvas)
     drawSettingsButtons(app, canvas)
     drawHelpText(app, canvas)
     drawHelp(app, canvas)
 
+# Function that handles all adjustments in the settings page. Updates and tracks
+# all changes to arrow direction, shape, speed, keybindinds, and backgrounds.
 def loadSettingsMode(app):
     app.mode = 'settingsMode'
     
@@ -286,12 +306,18 @@ def loadSettingsMode(app):
             app.travelDirection = direction
         return whenClicked
     directionButtons = [
-        RadioButton(directionLeft, directionY, 'Up', getDirectionIsEnabled('up'), getDirectionWhenClicked('up')),
-        RadioButton(directionLeft + directionStep, directionY, 'Down', getDirectionIsEnabled('down'), getDirectionWhenClicked('down')),
-        RadioButton(directionLeft + 2 * directionStep, directionY, 'Left', getDirectionIsEnabled('left'), getDirectionWhenClicked('left')),
-        RadioButton(directionLeft + 3 * directionStep, directionY, 'Right', getDirectionIsEnabled('right'), getDirectionWhenClicked('right')),
+        RadioButton(directionLeft, directionY, 'Up', 
+            getDirectionIsEnabled('up'), getDirectionWhenClicked('up')),
+        RadioButton(directionLeft + directionStep, directionY, 'Down', 
+            getDirectionIsEnabled('down'), getDirectionWhenClicked('down')),
+        RadioButton(directionLeft + 2 * directionStep, directionY, 'Left', 
+            getDirectionIsEnabled('left'), getDirectionWhenClicked('left')),
+        RadioButton(directionLeft + 3 * directionStep, directionY, 'Right', 
+            getDirectionIsEnabled('right'), getDirectionWhenClicked('right')),
     ]
 
+    # Adjusts the speed of arrows in game mode based off selection on settings page.
+    # 1 is slowest, 5 is fastest.
     def getSpeedIsEnabled(speed):
         def isEnabled():
             return app.arrowSpeed == speed
@@ -305,17 +331,23 @@ def loadSettingsMode(app):
     speedRight = app.width - 60
     speedStep = (speedRight - speedLeft) // 4
     speedButtons = [
-        RadioButton(speedLeft, speedY, '1', getSpeedIsEnabled(1), getSpeedWhenClicked(1)),
-        RadioButton(speedLeft + speedStep, speedY, '2', getSpeedIsEnabled(2), getSpeedWhenClicked(2)),
-        RadioButton(speedLeft + 2 * speedStep, speedY, '3', getSpeedIsEnabled(3), getSpeedWhenClicked(3)),
-        RadioButton(speedLeft + 3 * speedStep, speedY, '4', getSpeedIsEnabled(4), getSpeedWhenClicked(4)),
-        RadioButton(speedLeft + 4 * speedStep, speedY, '5', getSpeedIsEnabled(5), getSpeedWhenClicked(5)),
+        RadioButton(speedLeft, speedY, '1', 
+                    getSpeedIsEnabled(1), getSpeedWhenClicked(1)),
+        RadioButton(speedLeft + speedStep, speedY, '2', 
+                    getSpeedIsEnabled(2), getSpeedWhenClicked(2)),
+        RadioButton(speedLeft + 2 * speedStep, speedY, '3', 
+                    getSpeedIsEnabled(3), getSpeedWhenClicked(3)),
+        RadioButton(speedLeft + 3 * speedStep, speedY, '4', 
+                    getSpeedIsEnabled(4), getSpeedWhenClicked(4)),
+        RadioButton(speedLeft + 4 * speedStep, speedY, '5', 
+                    getSpeedIsEnabled(5), getSpeedWhenClicked(5)),
     ]
 
     keyY = 240
     keyLeft = app.width // 2 - 100
     keyRight = app.width - 80
     keyStep = (keyRight - keyLeft) // 3
+
     def getGetBinding(direction):
         def getBinding():
             for key in app.keyBinds:
@@ -323,6 +355,8 @@ def loadSettingsMode(app):
                     return key
             return None
         return getBinding
+
+    # Handles our keybind adjustments.
     def getSetBinding(direction):
         def setBinding(key):
             keyBindKeyToDelete = None
@@ -334,29 +368,39 @@ def loadSettingsMode(app):
             app.keyBinds[key] = direction
         return setBinding
     keyButtons = [
-        KeybindButton(keyLeft, keyY, 'Left', getGetBinding('left'), getSetBinding('left')),
-        KeybindButton(keyLeft + keyStep, keyY, 'Right', getGetBinding('right'), getSetBinding('right')),
-        KeybindButton(keyLeft + 2 * keyStep, keyY, 'Up', getGetBinding('up'), getSetBinding('up')),
-        KeybindButton(keyLeft + 3 * keyStep, keyY, 'Down', getGetBinding('down'), getSetBinding('down')),
+        KeybindButton(keyLeft, keyY, 'Left', 
+                getGetBinding('left'), getSetBinding('left')),
+        KeybindButton(keyLeft + keyStep, keyY, 'Right', 
+                getGetBinding('right'), getSetBinding('right')),
+        KeybindButton(keyLeft + 2 * keyStep, keyY, 'Up', 
+                getGetBinding('up'), getSetBinding('up')),
+        KeybindButton(keyLeft + 3 * keyStep, keyY, 'Down', 
+                getGetBinding('down'), getSetBinding('down')),
     ]
 
     shapeY = 310
     shapeLeft = app.width // 2 - 100
     shapeRight = app.width - 60
     shapeStep = (shapeRight - shapeLeft) // 3
+
     def getShapeIsEnabled(shape):
         def isEnabled():
             return app.shape == shape
         return isEnabled
+
     def getShapeWhenClicked(shape):
         def whenClicked():
             app.shape = shape
         return whenClicked
     shapeButtons = [
-        RadioButton(shapeLeft, shapeY, 'Arrow', getShapeIsEnabled('arrow'), getShapeWhenClicked('arrow')),
-        RadioButton(shapeLeft + shapeStep, shapeY, 'Triangle', getShapeIsEnabled('triangle'), getShapeWhenClicked('triangle')),
-        RadioButton(shapeLeft + 2 * shapeStep, shapeY, 'Square', getShapeIsEnabled('square'), getShapeWhenClicked('square')),
-        RadioButton(shapeLeft + 3 * shapeStep, shapeY, 'Circle', getShapeIsEnabled('circle'), getShapeWhenClicked('circle')),
+        RadioButton(shapeLeft, shapeY, 'Arrow', 
+                getShapeIsEnabled('arrow'), getShapeWhenClicked('arrow')),
+        RadioButton(shapeLeft + shapeStep, shapeY, 'Triangle', 
+                getShapeIsEnabled('triangle'), getShapeWhenClicked('triangle')),
+        RadioButton(shapeLeft + 2 * shapeStep, shapeY, 'Square', 
+                getShapeIsEnabled('square'), getShapeWhenClicked('square')),
+        RadioButton(shapeLeft + 3 * shapeStep, shapeY, 'Circle', 
+                getShapeIsEnabled('circle'), getShapeWhenClicked('circle')),
     ]
 
     backgroundDirs = os.listdir('bgs/')
@@ -364,12 +408,14 @@ def loadSettingsMode(app):
     bgLeft = app.width // 2 - 100
     bgRight = app.width - 60
     bgStep = (bgRight - bgLeft) // (len(backgroundDirs))
+
     def getBgIsEnabled(i):
         def isEnabled():
             if i == None:
                 return app.background == None
             return app.background == backgroundDirs[i]
         return isEnabled
+
     def getBgWhenClicked(i):
         def whenClicked():
             if i == None:
@@ -378,17 +424,20 @@ def loadSettingsMode(app):
             app.background = backgroundDirs[i]
         return whenClicked
     bgButtons = ([RadioButton(bgLeft, bgY, 'None', getBgIsEnabled(None), getBgWhenClicked(None))] +
-        [RadioButton(bgLeft + (i + 1) * bgStep, bgY, backgroundDirs[i], getBgIsEnabled(i), getBgWhenClicked(i)) for i in range(len(backgroundDirs))])
+        [RadioButton(bgLeft + (i + 1) * bgStep, bgY, backgroundDirs[i], 
+        getBgIsEnabled(i), getBgWhenClicked(i)) for i in range(len(backgroundDirs))])
 
-    app.settingsButtons = directionButtons + speedButtons + keyButtons + shapeButtons + bgButtons
+    app.settingsButtons = (directionButtons + speedButtons + 
+                            keyButtons + shapeButtons + bgButtons)
 
 ###################################################
 # Level Select Mode 
 ###################################################
 
+# Initialize level select mode.
 def loadLevelSelect(app):
     refreshLevelList(app)
-    app.mode = "levelSelectMode"
+    app.mode = 'levelSelectMode'
 
 def getLevelButtonLocation(app, i):
     topY = app.height // 3
@@ -449,24 +498,26 @@ def hasNextLevelPage(app):
 def drawLevelList(app, canvas):
     if hasPrevLevelPage(app):
         (x1, y1, x2, y2) = getLevelButtonLocation(app, 0)
-        canvas.create_rectangle(x1, y1, x2, y2, width=2, fill='black')
+        canvas.create_rectangle(x1, y1, x2, y2, width=2, fill="black")
         canvas.create_text((x1+x2)/2, (y1+y2)/2,
-                            text='Previous Page', fill='white')
+                            text="Previous Page", fill="white")
     for i in range(len(app.levelsToDisplay)):
         (x1, y1, x2, y2) = getLevelButtonLocation(app, i + 1)
         canvas.create_rectangle(x1, y1, x2, y2, width=2)
         canvas.create_text((x1+x2)/2, (y1+y2)/2, text=app.levelsToDisplay[i])
     if hasNextLevelPage(app):
         (x1, y1, x2, y2) = getLevelButtonLocation(app, len(app.levelsToDisplay) + 1)
-        canvas.create_rectangle(x1, y1, x2, y2, width=2, fill='black')
+        canvas.create_rectangle(x1, y1, x2, y2, width=2, fill="black")
         canvas.create_text((x1+x2)/2, (y1+y2)/2,
-                            text='Next Page', fill='white')
+                            text="Next Page", fill="white")
 
 def drawLevelSelectTitle(app, canvas):
     drawTitle(app, canvas, "Level Select")
 
 def drawLevelCreationHelpText(app, canvas):
-    canvas.create_text(app.width // 2, app.height // 5, text="Press 'C' to create your own level!", font='Arial 16')
+    canvas.create_text(app.width // 2, app.height // 5, 
+                      text="Press 'C' to create your own level!", 
+                      font='Arial 16')
 
 def levelSelectMode_mousePressed(app, event):
     clicked = getClickedLevelButton(app, event.x, event.y)
@@ -486,6 +537,7 @@ def levelSelectMode_keyPressed(app, event):
         loadLevelCreation(app)
 
 def levelSelectMode_redrawAll(app, canvas):
+    canvas.create_rectangle(0, 0, app.width, app.height, fill="lavender")
     drawLevelSelectTitle(app, canvas)
     drawLevelCreationHelpText(app, canvas)
     drawLevelList(app, canvas)
@@ -496,12 +548,14 @@ def levelSelectMode_redrawAll(app, canvas):
 # Level Creation Mode
 ###################################################
 
+# Opens pop-up for song selection before creating a level.
 def promptForSong(app):
-    app.song = app.getUserInput(('What song would you like to use? Enter a path. Press \'cancel\' to not use a song.\n'
-                                 'Careful, if you get the filename wrong, the game will crash!!!'))
+    app.song = app.getUserInput(("What song would you like to use? Enter a path. Press \'cancel\' to not use a song.\n"
+                                 "Careful, if you get the filename wrong, the game will crash!!!"))
     if app.song != None:
         app.sound = Sound(app.song)
 
+# Initializes the level creation page.
 def loadLevelCreation(app):
     app.mode = 'levelCreation'
     app.paused = True
@@ -510,15 +564,17 @@ def loadLevelCreation(app):
     app.animationsToDisplay = []
     promptForSong(app)
 
+# Transposes our level to a string.
 def levelToString(level):
     result = ""
     for direction, startTime, endTime in level:
         result += (f'{direction},{startTime},'
                      f'{endTime if endTime != None else ""}\n')
     return result
-    
+
+# Allows user to save their new level along with a name.
 def saveLevel(app):
-    levelName = app.getUserInput('What would you like to name your level?')
+    levelName = app.getUserInput("What would you like to name your level?")
     if (levelName == None):
         return None
     filename = f'levels/{levelName}.txt'
@@ -533,6 +589,8 @@ def saveAndQuitLevelCreation(app):
     saveLevel(app)
     loadLevelSelect(app)
 
+# Handles keypresses to start and stop our level create mode, as well as tracks 
+# arrow presses for level creation.
 def levelCreation_keyPressed(app, event):
     if app.readyToStart:
         app.paused = False
@@ -569,11 +627,11 @@ def levelCreation_redrawAll(app, canvas):
         drawAnimations(app, canvas)
         return None
 
-
 ###################################################
 # Instruction Mode 
 ###################################################
 
+# Loads our instructions pages.
 def loadInstructions(app):
     app.mode = 'instructionMode'
     app.currentInstructionIndex = 0
@@ -654,6 +712,8 @@ def loadInstructions(app):
 def drawInstructionsTitle(app, canvas):
     drawTitle(app, canvas, "Instructions")
 
+# Scrolls through our 7 pages of instructions. Right arrow key press 
+# returns user to menu after page 7.
 def instructionMode_keyPressed(app, event):
     commonKeyPressed(app, event)
     if event.key == 'Left' and app.currentInstructionIndex > 0:
@@ -665,16 +725,21 @@ def instructionMode_keyPressed(app, event):
             app.currentInstructionIndex += 1
 
 def drawInstructionNavigation(app, canvas):
-    canvas.create_text(app.width // 2, app.height // 5, text='Press the left and right arrow keys to change instruction pages.')
-    canvas.create_text(app.width // 2, app.height // 5 + 20, text=f'Page: {app.currentInstructionIndex + 1} / {len(app.instructions)}')
+    canvas.create_text(app.width // 2, app.height // 5, 
+        text="Press the left and right arrow keys to change instruction pages.")
+    canvas.create_text(app.width // 2, app.height // 5 + 20, 
+        text=f'Page: {app.currentInstructionIndex + 1} / {len(app.instructions)}')
 
 def drawInstructions(app, canvas):
     instructionTitle, instructionLines = app.instructions[app.currentInstructionIndex]
     instructionText = "\n".join(instructionLines)
-    canvas.create_text(app.width // 2, app.height // 5 + 50, text=instructionTitle, font='Audiowide 16 bold')
-    canvas.create_text(app.width // 2, app.height // 5 + 100, text=instructionText, font='Arial 10', anchor="n")
+    canvas.create_text(app.width // 2, app.height // 5 + 50, 
+            text=instructionTitle, font="Audiowide 16 bold")
+    canvas.create_text(app.width // 2, app.height // 5 + 100, 
+            text=instructionText, font='Arial 10', anchor="n")
 
 def instructionMode_redrawAll(app, canvas):
+    canvas.create_rectangle(0, 0, app.width, app.height, fill="lavender")
     drawInstructionsTitle(app, canvas)
     drawInstructionNavigation(app, canvas)
     drawInstructions(app, canvas)
@@ -685,6 +750,7 @@ def instructionMode_redrawAll(app, canvas):
 # Score Mode 
 ###################################################
 
+# Initialize our Score mode.
 def loadScoreMode(app):
     refreshScoreLevelList(app)
     app.activeScorePage = None
@@ -750,9 +816,9 @@ def hasNextScoreLevelPage(app):
 def drawScoreLevelList(app, canvas):
     if hasPrevScoreLevelPage(app):
         (x1, y1, x2, y2) = getScoreLevelButtonLocation(app, 0)
-        canvas.create_rectangle(x1, y1, x2, y2, width=2, fill='black')
+        canvas.create_rectangle(x1, y1, x2, y2, width=2, fill="black")
         canvas.create_text((x1+x2)/2, (y1+y2)/2,
-                            text='Previous Page', fill='white')
+                            text="Previous Page", fill="white")
     for i in range(len(app.scoreLevelsToDisplay)):
         (x1, y1, x2, y2) = getScoreLevelButtonLocation(app, i + 1)
         canvas.create_rectangle(x1, y1, x2, y2, width=2)
@@ -761,10 +827,12 @@ def drawScoreLevelList(app, canvas):
     if hasNextScoreLevelPage(app):
         (x1, y1, x2, y2) = getScoreLevelButtonLocation(app, 
                                 len(app.scoreLevelsToDisplay) + 1)
-        canvas.create_rectangle(x1, y1, x2, y2, width=2, fill='black')
+        canvas.create_rectangle(x1, y1, x2, y2, width=2, fill="black")
         canvas.create_text((x1+x2)/2, (y1+y2)/2,
-                            text='Next Page', fill='white')
+                            text="Next Page", fill="white")
 
+# Pulls up to 10 unique scores per level that were previously saved in 
+# the scores directory files.
 def getTopScores(app):
     scoresToGet = 10
     filename = f'scores/{app.activeScorePage}.txt'
@@ -777,7 +845,7 @@ def getTopScores(app):
 
 def drawActiveScorePage(app, canvas):
     canvas.create_text(app.width // 2, 80, text=f'{app.activeScorePage}:',
-                       font='Arial 20 bold underline', fill='red')
+                       font="Arial 20 bold underline", fill="red")
 
     topScores = getTopScores(app)
     for i in range(len(topScores)):
@@ -786,12 +854,17 @@ def drawActiveScorePage(app, canvas):
         right = app.width // 2 + 200
         y = 150 + 30 * i
         canvas.create_text(left, y, text=f'{name}', font='Arial 16', anchor='sw')
-        canvas.create_text(right, y, text=f'{int(score)}', font='Arial 16', anchor='se')
+        canvas.create_text(right, y, text=f'{int(score)}', 
+                          font="Arial 16", 
+                          anchor='se')
         canvas.create_line(left, y, right, y, width=2)
 
 def drawScoresTitle(app, canvas):
     drawTitle(app, canvas, "Scores")
 
+# Pressing on a level title will open a new scores page that displays only 
+# that level's top 10 scores. User can click again to return to main High Scores
+# page.
 def scoreMode_mousePressed(app, event):
     if app.activeScorePage != None:
         app.activeScorePage = None
@@ -811,6 +884,7 @@ def scoreMode_keyPressed(app, event):
     commonKeyPressed(app, event)
 
 def scoreMode_redrawAll(app,canvas):
+    canvas.create_rectangle(0, 0, app.width, app.height, fill="lavender")
     drawScoresTitle(app, canvas)
     if app.activeScorePage == None:
         drawScoreLevelList(app, canvas)
@@ -823,6 +897,7 @@ def scoreMode_redrawAll(app,canvas):
 # Game Mode 
 ###################################################
 
+# Returns the first timed instance of a note/arrow.
 def getStartTime(note):
     return note[1]
 
@@ -841,11 +916,13 @@ def parseLevel(levelString):
     result.sort(key=getStartTime) # Sort by the startTime.
     return result
 
+# Opens a selected level file.
 def loadLevelFile(app, filename):
-    f = open(filename, "r")
+    f = open(filename, 'r')
     app.currLevel = parseLevel(f.read())
     f.close()
 
+# Loads background accordingly, if selected.
 def loadBackgroundAnimation(app):
     app.backgroundIndex = None
     if app.background == None:
@@ -854,6 +931,7 @@ def loadBackgroundAnimation(app):
     app.backgroundImages = [ImageTk.PhotoImage(app.loadImage(directory + '/' + filename)) for filename in os.listdir(directory)]
     app.backgroundIndex = 0
 
+# Loads song, if there is one tied to the level.
 def loadSong(app, level):
     for f in os.listdir('songs'):
         root = os.path.splitext(f)[0]
@@ -862,12 +940,13 @@ def loadSong(app, level):
             return None
     app.sound = Sound()
 
+# Initialized load level mode.
 def loadLevel(app, level):
     loadLevelFile(app, f'levels/{level}.txt')
     loadBackgroundAnimation(app)
     loadSong(app, level)
     app.currLevelName = level
-    app.mode = "gameMode"
+    app.mode = 'gameMode'
     app.readyToStart = True
     app.paused = True
     app.elapsed = 0
@@ -961,7 +1040,7 @@ def gameMode_timerFired(app):
             combo_multiplier = 1 + min(app.combo * 0.1, 3)
             app.score -= 5
             app.combo = 0
-            app.noteScores[app.missedIndex] = ('Miss',
+            app.noteScores[app.missedIndex] = ("Miss",
                                     combo_multiplier, app.combo, app.score, elapsed)
         app.missedIndex += 1
     # Once all notes have been finished, ends level and loads results.
@@ -1014,27 +1093,27 @@ def gameMode_keyPressed(app, event):
             app.score -= 5
             app.misses.append((elapsed, app.score))
             app.combo = 0
-            scoreCategory = 'Miss'
+            scoreCategory = "Miss"
         elif bestError < 0.05:
             app.score += 10 * combo_multiplier
             app.combo += 1
-            app.noteScores[bestNoteIndex] = ('Perfect',
+            app.noteScores[bestNoteIndex] = ("Perfect",
                                     combo_multiplier, app.combo, 
                                     app.score, elapsed)
-            scoreCategory = 'Perfect!'
+            scoreCategory = "Perfect!"
         elif bestError < 0.1:
             app.score += 5 * combo_multiplier
             app.combo += 1
-            app.noteScores[bestNoteIndex] = ('Good',
+            app.noteScores[bestNoteIndex] = ("Good",
                                 combo_multiplier, app.combo, app.score, elapsed)
-            scoreCategory = 'Good'
+            scoreCategory = "Good"
         else:
             app.score += 2 * combo_multiplier
             app.combo = 0
-            app.noteScores[bestNoteIndex] = ('OK', 
+            app.noteScores[bestNoteIndex] = ("OK", 
                                     combo_multiplier, app.combo, 
                                     app.score, elapsed)
-            scoreCategory = 'ok'
+            scoreCategory = "ok"
         app.max_combo = max(app.combo, app.max_combo)
         startAnimation(app, keyDirection, scoreCategory)
     elif event.key == "Q" or event.key == "q":
@@ -1047,25 +1126,25 @@ def drawBackground(app, canvas):
 
 def drawTopBar(app, canvas):
     # Create a white background rectangle so that the top bar text is readable.
-    canvas.create_rectangle(0, 0, app.width, 40, fill='white')
+    canvas.create_rectangle(0, 0, app.width, 40, fill="white")
     score_x = 0
     score_y = 20
     canvas.create_text(score_x, score_y,
                         anchor='w',
-                        font='Arial 16 bold',
+                        font="Arial 16 bold",
                         text=f'Score: {int(app.score):,}')
     
     combo_x = app.width / 2
     combo_y = 20
     canvas.create_text(combo_x, combo_y,
-                        font='Arial 16 bold',
+                        font="Arial 16 bold",
                         text=f'Combo: {app.combo}')
 
     progress_x = app.width
     progress_y = 20
     canvas.create_text(progress_x, progress_y,
                         anchor='e',
-                        font='Arial 16 bold',
+                        font="Arial 16 bold",
                         text=f'P: {int(100 * app.progress)}%')
 
 def getNoteLocation(app, canvas, direction, proportion):
@@ -1075,7 +1154,8 @@ def getNoteLocation(app, canvas, direction, proportion):
     downCenter = 2 * app.width / 5
     upCenter = 3 * app.width / 5
     rightCenter = 4 * app.width / 5
-    noteVerticalCenter = verticalCenter + proportion * (startingVerticalCenter - verticalCenter)
+    noteVerticalCenter = (verticalCenter + proportion * 
+                            (startingVerticalCenter - verticalCenter))
     if direction == 'left':
         x, y = leftCenter, noteVerticalCenter
     elif direction == 'down':
@@ -1096,24 +1176,25 @@ def getNoteLocation(app, canvas, direction, proportion):
     elif app.travelDirection == 'right':
         return -dy + cx, dx + cy
 
+# Draws our animated arrows based off the direction triggered.
 def drawAnimations(app, canvas):
     for shape, direction, index, scoreCategory in app.animationsToDisplay:
         x, y = getNoteLocation(app, canvas, direction, 0)
         canvas.create_image(x, y, image=ImageTk.PhotoImage(app.arrowAnimations[shape][direction][index]))
         if scoreCategory != None:
             if direction == 'up':
-                fill='red'
+                fill="red"
             elif direction == 'down':
-                fill='purple'
+                fill="purple"
             elif direction == 'right':
-                fill='blue'
+                fill="blue"
             elif direction == 'left':
-                fill='green'
+                fill="green"
             canvas.create_text(x + 40 + index, y,
                                text=scoreCategory,
                                fill=fill,
                                angle=30 + 0.5 * index,
-                               font='Audiowide 14')
+                               font="Audiowide 14")
 
 def gameMode_redrawAll(app, canvas):
     if app.readyToStart:
@@ -1146,6 +1227,8 @@ def gameMode_redrawAll(app, canvas):
 # Note Style Helpers
 ###################################################
 
+# The section handles the drawing of our different note/arrow shapes: Arrow, 
+# Triangle, Square, and Circle.
 def drawArrowNote(app, canvas, x, y, direction):
     arrowHeight = 60
     arrowWidth = 50
@@ -1241,10 +1324,12 @@ def drawCircleNote(app, canvas, x, y, direction):
 # Results Page 
 ###################################################
 
+# Allows a user to save their total score, which will be accessible on the High
+# Scores page after submission (assuming it's in the top 10).
 def saveScore(app):
     name = None
     while name == None or ',' in name:
-        name = app.getUserInput('What is your name?')
+        name = app.getUserInput("What is your name?")
         if (name == None):
             return None
         if (',' in name):
@@ -1254,15 +1339,16 @@ def saveScore(app):
     f.write(f'{name},{app.score}\n')
     f.close()
 
+# Load our initialized results page.
 def loadResultsPage(app):
     app.mode = 'resultsPage'
     # Get a dictionary to hold counts for each of the possible note scores.
     app.counts = {
-            'Perfect': 0,
-            'Good': 0,
-            'OK': 0,
-            'Miss': 0,
-            'Total': len(app.currLevel)
+            "Perfect": 0,
+            "Good": 0,
+            "OK": 0,
+            "Miss": 0,
+            "Total": len(app.currLevel)
         }
     for score, _, _, _, _ in app.noteScores:
         app.counts[score] += 1
@@ -1392,16 +1478,18 @@ def drawGraph(app, canvas):
     mergedEvents = mergeNoteScoresAndMisses(app)
     if len(mergedEvents) <= 1:
         canvas.create_text(app.width / 2, (y1 + y2) / 2,
-                            font='Arial 20 bold',
-                            text='Wow, that was a cool level.')
+                            font="Arial 20 bold",
+                            text="Wow, that was a cool level.")
         return None
     plotLineOverTime(canvas, x1, y1, x2, y2, mergedEvents,
                      lambda entry: entry[0],
-                     lambda entry: entry[1], app.elapsed, 'black')
+                     lambda entry: entry[1], app.elapsed, "black")
     plotLineOverTime(canvas, x1, y1, x2, y2, mergedEvents,
                      lambda entry: entry[0],
-                     lambda entry: entry[2], app.elapsed, 'blue')
+                     lambda entry: entry[2], app.elapsed, "blue")
 
+# Draws our totals from a game, including Total Score, Total Time lasted, and
+# Highest Combo.
 def drawTotals(app, canvas):
     top_y = app.height / 3
     bot_y = 2 * app.height / 3
@@ -1409,17 +1497,17 @@ def drawTotals(app, canvas):
     score_y = top_y + (bot_y - top_y) / 6
     canvas.create_text(left, score_y,
                         anchor='w',
-                        font='Arial 16 bold',
+                        font="Arial 16 bold",
                         text=f'Total Score: {int(app.score):,}')
     time_y = top_y + 3 * (bot_y - top_y) / 6
     canvas.create_text(left, time_y,
                         anchor='w',
-                        font='Arial 16 bold',
+                        font="Arial 16 bold",
                         text=f'Total Time: {int(app.elapsed)}s')
     combo_y = top_y + 5 * (bot_y - top_y) / 6
     canvas.create_text(left, combo_y,
                         anchor='w',
-                        font='Arial 16 bold',
+                        font="Arial 16 bold",
                         text=f'Highest Combo: {app.max_combo}')
 
 def drawResultsButtons(app, canvas):
@@ -1429,6 +1517,7 @@ def drawResultsButtons(app, canvas):
         canvas.create_text((x1 + x2)//2, (y1 + y2)//2, 
                 text=app.resultsButtons[i][0], font="Arial 15 bold")
 
+# Draws our score counts.
 def drawCounts(app, canvas):
     top_y = app.height / 3
     bot_y = 3 * app.height / 4
@@ -1439,10 +1528,11 @@ def drawCounts(app, canvas):
         y = top_y + (1 + 2 * i) * (bot_y - top_y) / (2 * len(countsList)) # halfway down each cell.
         canvas.create_text(right, y,
                         anchor='e',
-                        font='Arial 16 bold',
+                        font="Arial 16 bold",
                         text=f'{score}: {count}')
 
 def resultsPage_redrawAll(app, canvas):
+    canvas.create_rectangle(0, 0, app.width, app.height, fill="white smoke")
     drawGraph(app, canvas)
     drawTotals(app, canvas)
     drawResultsButtons(app, canvas)
@@ -1478,6 +1568,7 @@ def loadArrowAnimations(app):
                 app.arrowAnimations[shape] = {}
             app.arrowAnimations[shape][direction] = generateAnimation(app, shape, direction)
 
+# Initialize our main app.
 def appStarted(app):
     app.displayHelp = False
     app.levelsPerPage = 5
@@ -1498,10 +1589,10 @@ def appStarted(app):
             'Down': 'down'
         }
     app.directionColors = {
-        'left': ('green', 'lightGreen'),
-        'down': ('purple', 'violet'),
-        'up': ('red', 'pink'),
-        'right': ('blue', 'lightBlue')
+        'left': ("green", "lightGreen"),
+        'down': ("purple", "violet"),
+        'up': ("red", "pink"),
+        'right': ("blue", "lightBlue")
     }
     app.timerDelay = 25
     pygame.mixer.init()
