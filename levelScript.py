@@ -14,7 +14,7 @@ buttons = ['left', 'right', 'up', 'down']
 firstNote = 5
 lastNote = 20
 
-notes = 40
+notes = 8
 song = []
 
 for i in range(notes):
@@ -30,4 +30,4 @@ def writeSongToFile(song, filename):
     f.write(text)
     f.close()
 
-writeSongToFile(song, "levels/kelly.txt")
+writeSongToFile(song, "levels/short1.txt")
